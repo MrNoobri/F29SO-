@@ -1,5 +1,8 @@
 import React from "react";
 import { Link, Navigate, Route, Routes } from "react-router";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import VerifyEmail from "./pages/VerifyEmail";
 
 const ShellLayout = ({ title, description, children }) => (
   <div className="app-shell">
@@ -22,53 +25,23 @@ const ShellLayout = ({ title, description, children }) => (
 
 const HomePage = () => (
   <ShellLayout
-    title="Health tracking platform setup"
-    description="Initial frontend shell with routing, shared layout, and placeholder entry pages."
+    title="Early authentication pages"
+    description="This stage replaces the placeholder routes with the first pass of login, registration, and email verification screens."
   >
     <section className="hero-card">
-      <h2>Project foundation in progress</h2>
+      <h2>Account access flow is taking shape</h2>
       <p>
-        This early version wires up the React app shell before authentication,
-        dashboards, and feature modules are added in later commits.
+        The project now includes basic auth page layouts and form structure.
+        Submission wiring, validation polish, and protected routes can be added in later commits.
       </p>
       <div className="button-row">
         <Link className="primary-button" to="/login">
-          Go to login
+          Open login
         </Link>
         <Link className="secondary-button" to="/register">
-          Create account
+          Open register
         </Link>
       </div>
-    </section>
-  </ShellLayout>
-);
-
-const LoginPlaceholder = () => (
-  <ShellLayout
-    title="Login flow coming next"
-    description="Authentication pages will be built in a later commit."
-  >
-    <section className="placeholder-card">
-      <h2>Login page placeholder</h2>
-      <p>
-        This route is added early so the routing structure is in place before the
-        real form components are introduced.
-      </p>
-    </section>
-  </ShellLayout>
-);
-
-const RegisterPlaceholder = () => (
-  <ShellLayout
-    title="Registration flow coming next"
-    description="The account creation UI will be added after the auth layer is wired in."
-  >
-    <section className="placeholder-card">
-      <h2>Register page placeholder</h2>
-      <p>
-        Later commits can replace this placeholder with the real registration
-        screen without changing the route structure.
-      </p>
     </section>
   </ShellLayout>
 );
@@ -93,8 +66,9 @@ function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/home" element={<Navigate to="/" replace />} />
-      <Route path="/login" element={<LoginPlaceholder />} />
-      <Route path="/register" element={<RegisterPlaceholder />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
