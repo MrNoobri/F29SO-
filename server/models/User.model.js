@@ -50,6 +50,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       select: false,
     },
+    googleFitConnected: {
+      type: Boolean,
+      default: false,
+    },
+    googleFitConnectedAt: {
+      type: Date,
+      default: null,
+    },
+    googleFitLastSyncAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

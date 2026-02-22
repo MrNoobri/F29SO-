@@ -7,6 +7,9 @@ import MetricDetailModal from "../components/patient/MetricDetailModal";
 import PatientHero from "../components/patient/PatientHero";
 import PatientInsights from "../components/patient/PatientInsights";
 import WeeklyBarChart from "../components/patient/WeeklyBarChart";
+import FitMetricTile from "../components/patient/FitMetricTile";
+import GoogleFitConnect from "../components/GoogleFitConnect";
+import WearableDevices from "../components/wearables/WearableDevices";
 import MetricCard from "../components/health/MetricCard";
 import AddMetricModal from "../components/health/AddMetricModal";
 import MetricRing from "../components/dashboard/MetricRing";
@@ -15,30 +18,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Button } from "../components/ui/button";
 
 const summaryCards = [
-  {
-    title: "Heart rate",
-    value: "76 bpm",
-    subtext: "Holding steady this morning.",
-    icon: HeartPulse,
-  },
-  {
-    title: "Appointments",
-    value: "1 upcoming",
-    subtext: "Your next review is already blocked out.",
-    icon: CalendarDays,
-  },
-  {
-    title: "Messages",
-    value: "2 unread",
-    subtext: "A placeholder count until messaging is added.",
-    icon: MessageSquareMore,
-  },
-  {
-    title: "Night routine",
-    value: "6 / 7",
-    subtext: "A soft indicator for habit tracking later on.",
-    icon: MoonStar,
-  },
+  { title: "Heart rate", value: "76 bpm", subtext: "Holding steady this morning.", icon: HeartPulse },
+  { title: "Appointments", value: "1 upcoming", subtext: "Your next review is already blocked out.", icon: CalendarDays },
+  { title: "Messages", value: "2 unread", subtext: "A placeholder count until messaging is added.", icon: MessageSquareMore },
+  { title: "Night routine", value: "6 / 7", subtext: "A soft indicator for habit tracking later on.", icon: MoonStar },
 ];
 
 const weeklyActivity = [
@@ -52,60 +35,27 @@ const weeklyActivity = [
 ];
 
 const activityFeed = [
-  {
-    time: "08:30",
-    title: "Morning vitals check",
-    description: "This timeline becomes more useful once real metric submissions and alerts are wired in.",
-  },
-  {
-    time: "13:15",
-    title: "Hydration reminder",
-    description: "A soft placeholder event for later notification features.",
-  },
-  {
-    time: "18:45",
-    title: "Evening wrap-up",
-    description: "A future commit can turn this into a proper symptom or recovery check-in.",
-  },
+  { time: "08:30", title: "Morning vitals check", description: "This timeline becomes more useful once real metric submissions and alerts are wired in." },
+  { time: "13:15", title: "Hydration reminder", description: "A soft placeholder event for later notification features." },
+  { time: "18:45", title: "Evening wrap-up", description: "A future commit can turn this into a proper symptom or recovery check-in." },
 ];
 
 const insightCards = [
-  {
-    title: "Vitals are stable",
-    tag: "Overview",
-    description: "The dashboard now has a proper coaching surface instead of a simple placeholder page.",
-  },
-  {
-    title: "Room for personalization",
-    tag: "Interaction",
-    description: "This commit introduces rearrangeable sections so the patient view starts to feel more product-like.",
-  },
-  {
-    title: "More tabs coming next",
-    tag: "Roadmap",
-    description: "Appointments, messages, and profile areas still use lightweight placeholders at this stage.",
-  },
+  { title: "Vitals are stable", tag: "Overview", description: "The dashboard now has a proper coaching surface instead of a simple placeholder page." },
+  { title: "Wearables are starting", tag: "Integration", description: "Google Fit and passive tracking areas now have a first-pass home inside the patient experience." },
+  { title: "More passive data later", tag: "Roadmap", description: "This step keeps the integration intentionally simple so richer syncing logic can be added later." },
 ];
 
 const metricCards = [
-  {
-    title: "Blood pressure",
-    metricType: "bloodPressure",
-    value: "118 / 76",
-    unit: "mmHg",
-  },
-  {
-    title: "Heart rate",
-    metricType: "heartRate",
-    value: 76,
-    unit: "bpm",
-  },
-  {
-    title: "Sleep",
-    metricType: "sleep",
-    value: 7.2,
-    unit: "hours",
-  },
+  { title: "Blood pressure", metricType: "bloodPressure", value: "118 / 76", unit: "mmHg" },
+  { title: "Heart rate", metricType: "heartRate", value: 76, unit: "bpm" },
+  { title: "Sleep", metricType: "sleep", value: 7.2, unit: "hours" },
+];
+
+const fitTiles = [
+  { title: "Steps", value: "7,842", unit: "today", caption: "A wearable-style movement summary tile for the dashboard." },
+  { title: "Sleep", value: "7.2", unit: "hours", caption: "A light first pass at passive recovery tracking." },
+  { title: "Calories", value: "524", unit: "active", caption: "A placeholder metric block ready for synced activity data." },
 ];
 
 const metricDetailMap = {
@@ -170,13 +120,7 @@ function DashboardOverview({ onAddMetric, onOpenMetric }) {
     <>
       <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (
-          <StatTile
-            key={card.title}
-            title={card.title}
-            value={card.value}
-            subtext={card.subtext}
-            icon={card.icon}
-          />
+          <StatTile key={card.title} title={card.title} value={card.value} subtext={card.subtext} icon={card.icon} />
         ))}
       </section>
 
@@ -198,12 +142,7 @@ function DashboardOverview({ onAddMetric, onOpenMetric }) {
             <CardContent className="grid gap-4 md:grid-cols-3">
               {metricCards.map((metric) => (
                 <div key={metric.title} onClick={() => onOpenMetric(metricDetailMap[metric.title])}>
-                  <MetricCard
-                    title={metric.title}
-                    metricType={metric.metricType}
-                    value={metric.value}
-                    unit={metric.unit}
-                  />
+                  <MetricCard title={metric.title} metricType={metric.metricType} value={metric.value} unit={metric.unit} />
                 </div>
               ))}
             </CardContent>
@@ -245,12 +184,7 @@ function DashboardOverview({ onAddMetric, onOpenMetric }) {
           <CardContent className="grid gap-4 md:grid-cols-3">
             {metricCards.map((metric) => (
               <div key={metric.title} onClick={() => onOpenMetric(metricDetailMap[metric.title])}>
-                <MetricCard
-                  title={metric.title}
-                  metricType={metric.metricType}
-                  value={metric.value}
-                  unit={metric.unit}
-                />
+                <MetricCard title={metric.title} metricType={metric.metricType} value={metric.value} unit={metric.unit} />
               </div>
             ))}
           </CardContent>
@@ -262,6 +196,23 @@ function DashboardOverview({ onAddMetric, onOpenMetric }) {
       </div>
 
       <section className="mt-6 grid gap-4 xl:grid-cols-[1fr_0.95fr]">
+        <GoogleFitConnect />
+        <WearableDevices />
+      </section>
+
+      <section className="mt-6 grid gap-4 md:grid-cols-3">
+        {fitTiles.map((tile) => (
+          <FitMetricTile
+            key={tile.title}
+            title={tile.title}
+            value={tile.value}
+            unit={tile.unit}
+            caption={tile.caption}
+          />
+        ))}
+      </section>
+
+      <section className="mt-6 grid gap-4 xl:grid-cols-[1fr_0.95fr]">
         <Card className="rounded-[1.75rem]">
           <CardHeader>
             <CardTitle>Quick care blocks</CardTitle>
@@ -270,29 +221,23 @@ function DashboardOverview({ onAddMetric, onOpenMetric }) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-600">
-              Friday review appointment at 11:00 AM.
-            </div>
-            <div className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-600">
-              Evening sleep note reminder after 9:00 PM.
-            </div>
-            <Button variant="outline" className="w-full" onClick={onAddMetric}>
-              Log a new reading
-            </Button>
+            <div className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-600">Friday review appointment at 11:00 AM.</div>
+            <div className="rounded-3xl bg-slate-50 p-4 text-sm text-slate-600">Evening sleep note reminder after 9:00 PM.</div>
+            <Button variant="outline" className="w-full" onClick={onAddMetric}>Log a new reading</Button>
           </CardContent>
         </Card>
 
         <Card className="rounded-[1.75rem]">
           <CardHeader>
-            <CardTitle>What this interaction step adds</CardTitle>
+            <CardTitle>What this wearable step adds</CardTitle>
             <CardDescription>
-              The patient area now has a dock and rearrangeable dashboard widgets.
+              The patient area now has its first passive tracking and wearable integration surface.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm leading-6 text-slate-600">
-            <div className="rounded-2xl bg-slate-50 p-4">Overview widgets can be repositioned on desktop.</div>
-            <div className="rounded-2xl bg-slate-50 p-4">A dock is in place for switching between dashboard areas.</div>
-            <div className="rounded-2xl bg-slate-50 p-4">Later commits can replace these placeholders with real tabs like messages and appointments.</div>
+            <div className="rounded-2xl bg-slate-50 p-4">Google Fit connection and manual sync controls are in place.</div>
+            <div className="rounded-2xl bg-slate-50 p-4">Wearable summary tiles now sit alongside manually logged metrics.</div>
+            <div className="rounded-2xl bg-slate-50 p-4">Later commits can replace the sample values with real synced health data.</div>
           </CardContent>
         </Card>
       </section>
@@ -348,12 +293,7 @@ export default function PatientDashboard() {
 
       <DashboardDock activeTab={activeTab} onTabChange={setActiveTab} userName="Alex Morgan" />
 
-      <MetricDetailModal
-        isOpen={Boolean(selectedMetric)}
-        metric={selectedMetric}
-        onClose={() => setSelectedMetric(null)}
-      />
-
+      <MetricDetailModal isOpen={Boolean(selectedMetric)} metric={selectedMetric} onClose={() => setSelectedMetric(null)} />
       <AddMetricModal isOpen={isAddMetricOpen} onClose={() => setIsAddMetricOpen(false)} />
     </div>
   );
