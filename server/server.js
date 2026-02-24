@@ -7,6 +7,7 @@ const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/auth.routes");
 const chatbotRoutes = require("./routes/chatbot.routes");
 const googleFitRoutes = require("./routes/googlefit.routes");
+const appointmentRoutes = require("./routes/appointment.routes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,6 +39,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/googlefit", googleFitRoutes);
+app.use("/api/appointments", appointmentRoutes);
 
 async function startServer() {
   try {
