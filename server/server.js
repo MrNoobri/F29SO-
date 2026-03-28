@@ -144,6 +144,12 @@ app.use("/api", generalLimiter);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // MongoDB Connection
+if (!process.env.MONGODB_URI) {
+  console.error("✗ Missing MONGODB_URI environment variable.");
+  console.error("  Create server/.env and set MONGODB_URI, or copy values from .env.example.");
+  process.exit(1);
+}
+
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => console.log("✓ MongoDB connected successfully"))
