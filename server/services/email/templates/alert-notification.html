@@ -18,7 +18,11 @@
           </tr>
           <tr>
             <td style="padding:32px;">
-              <div style="background-color:{{#if critical}}#7f1d1d{{else}}#78350f{{/if}};border-radius:8px;padding:16px;margin-bottom:24px;text-align:center;">
+              {{#if critical}}
+              <div style="background-color:#7f1d1d;border-radius:8px;padding:16px;margin-bottom:24px;text-align:center;">
+              {{else}}
+              <div style="background-color:#78350f;border-radius:8px;padding:16px;margin-bottom:24px;text-align:center;">
+              {{/if}}
                 <p style="margin:0;color:#ffffff;font-size:18px;font-weight:700;">
                   {{#if critical}}🚨 CRITICAL{{else}}⚠️ WARNING{{/if}} — {{severity}} Alert
                 </p>
