@@ -1,6 +1,9 @@
 const { verifyToken } = require("../utils/jwt.util");
 const User = require("../models/User.model");
 
+/**
+ * Verify JWT and attach user to request
+ */
 const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -22,7 +25,10 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    const user = await User.findById(decoded.userId).select("-password -refreshToken");
+    // Get user from database
+    const user = await User.findById(decoded.userId).select(
+      "-password -refreshToken",
+    );
 
     if (!user || !user.isActive) {
       return res.status(401).json({
@@ -42,6 +48,9 @@ const authenticate = async (req, res, next) => {
   }
 };
 
+/**
+ * Check if user has required role(s)
+ */
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -62,7 +71,4 @@ const authorize = (...roles) => {
   };
 };
 
-module.exports = {
-  authenticate,
-  authorize,
-};
+module.exports = { authenticate, authorize };
