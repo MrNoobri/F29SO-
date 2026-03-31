@@ -1,21 +1,29 @@
 const Message = require("../models/Message.model");
 const User = require("../models/User.model");
+const { createAuditLog } = require("../middleware/audit.middleware");
 
-const sanitizeMessage = (value = "") => String(value).trim();
+/**
+ * Sanitize HTML to prevent stored XSS in messages
+ */
+const sanitizeHtml = (str) => {
+  if (typeof str !== "string") return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
 
+/**
+ * Send message
+ */
 const sendMessage = async (req, res) => {
   try {
     const { recipientId, content } = req.body;
 
-    if (!recipientId || !content?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Recipient and content are required",
-      });
-    }
-
+    // Validate recipient exists
     const recipient = await User.findById(recipientId);
-
     if (!recipient) {
       return res.status(404).json({
         success: false,
@@ -23,93 +31,138 @@ const sendMessage = async (req, res) => {
       });
     }
 
-    const conversationId = Message.createConversationId(req.user._id, recipientId);
+    const conversationId = Message.createConversationId(
+      req.user._id,
+      recipientId,
+    );
 
     const message = await Message.create({
       conversationId,
       senderId: req.user._id,
       recipientId,
-      content: sanitizeMessage(content),
+      content: sanitizeHtml(content),
+      type: "text",
     });
 
-    const populatedMessage = await message.populate(
+    await message.populate(
       "senderId recipientId",
-      "email role profile.firstName profile.lastName",
+      "profile.firstName profile.lastName role",
     );
 
+    await createAuditLog(req.user._id, req.user.role, "send-message", {
+      targetId: message._id,
+      targetModel: "Message",
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Message sent successfully",
+      data: message,
+    });
+
+    // Emit real-time event
     const io = req.app.get("io");
     if (io) {
-      io.to(`conversation:${conversationId}`).emit("message:new", populatedMessage);
-      io.to(`user:${recipientId}`).emit("message:new", populatedMessage);
+      const messageData = message.toObject();
+      io.to(`conversation:${conversationId}`).emit("new-message", messageData);
+      io.to(`user:${recipientId}`).emit("new-message", messageData);
     }
-
-    return res.status(201).json({
-      success: true,
-      data: populatedMessage,
-    });
   } catch (error) {
-    console.error("sendMessage error:", error);
-    return res.status(500).json({
+    console.error("Send message error:", error);
+    res.status(500).json({
       success: false,
       message: "Failed to send message",
     });
   }
 };
 
+/**
+ * Get conversations
+ */
 const getConversations = async (req, res) => {
   try {
+    // Get all unique conversation partners
     const messages = await Message.find({
       $or: [{ senderId: req.user._id }, { recipientId: req.user._id }],
     })
-      .populate("senderId recipientId", "role profile.firstName profile.lastName")
+      .populate(
+        "senderId recipientId",
+        "profile.firstName profile.lastName role avatar",
+      )
       .sort({ createdAt: -1 });
 
+    // Group by conversation and get latest message
     const conversationMap = new Map();
 
     messages.forEach((message) => {
-      const { conversationId } = message;
+      const conversationId = message.conversationId;
 
       if (!conversationMap.has(conversationId)) {
-        const participant =
+        const partnerId =
           message.senderId._id.toString() === req.user._id.toString()
             ? message.recipientId
             : message.senderId;
 
         conversationMap.set(conversationId, {
           conversationId,
-          participant,
+          participant: partnerId,
           lastMessage: message,
           unreadCount: 0,
         });
       }
 
-      if (message.recipientId._id.toString() === req.user._id.toString() && !message.isRead) {
-        conversationMap.get(conversationId).unreadCount += 1;
+      // Count unread messages
+      if (
+        message.recipientId._id.toString() === req.user._id.toString() &&
+        !message.isRead
+      ) {
+        conversationMap.get(conversationId).unreadCount++;
       }
     });
 
-    return res.json({
+    const conversations = Array.from(conversationMap.values());
+
+    res.json({
       success: true,
-      data: Array.from(conversationMap.values()),
+      data: conversations,
+      count: conversations.length,
     });
   } catch (error) {
-    console.error("getConversations error:", error);
-    return res.status(500).json({
+    console.error("Get conversations error:", error);
+    res.status(500).json({
       success: false,
-      message: "Failed to load conversations",
+      message: "Failed to retrieve conversations",
     });
   }
 };
 
+/**
+ * Get messages in conversation
+ */
 const getMessages = async (req, res) => {
   try {
     const { userId } = req.params;
+    const { limit = 50, before } = req.query;
+
     const conversationId = Message.createConversationId(req.user._id, userId);
 
-    const messages = await Message.find({ conversationId })
-      .populate("senderId recipientId", "role profile.firstName profile.lastName")
-      .sort({ createdAt: 1 });
+    const query = { conversationId };
 
+    if (before) {
+      query.createdAt = { $lt: new Date(before) };
+    }
+
+    const messages = await Message.find(query)
+      .populate(
+        "senderId recipientId",
+        "profile.firstName profile.lastName role",
+      )
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    // Mark messages as read
     await Message.updateMany(
       {
         conversationId,
@@ -122,40 +175,82 @@ const getMessages = async (req, res) => {
       },
     );
 
+    // Emit read receipt
     const io = req.app.get("io");
     if (io) {
-      io.to(`conversation:${conversationId}`).emit("message:read", {
+      io.to(`conversation:${conversationId}`).emit("messages-read", {
         conversationId,
         readBy: req.user._id,
       });
     }
 
-    return res.json({
+    res.json({
       success: true,
-      data: messages,
+      data: messages.reverse(),
+      count: messages.length,
     });
   } catch (error) {
-    console.error("getMessages error:", error);
-    return res.status(500).json({
+    console.error("Get messages error:", error);
+    res.status(500).json({
       success: false,
-      message: "Failed to load messages",
+      message: "Failed to retrieve messages",
     });
   }
 };
 
+/**
+ * Get unread message count
+ */
 const getUnreadCount = async (req, res) => {
   try {
     const count = await Message.getUnreadCount(req.user._id);
 
-    return res.json({
+    res.json({
       success: true,
       data: { count },
     });
   } catch (error) {
-    console.error("getUnreadCount error:", error);
-    return res.status(500).json({
+    console.error("Get unread count error:", error);
+    res.status(500).json({
       success: false,
-      message: "Failed to load unread count",
+      message: "Failed to get unread count",
+    });
+  }
+};
+
+/**
+ * Delete message
+ */
+const deleteMessage = async (req, res) => {
+  try {
+    const message = await Message.findById(req.params.id);
+
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: "Message not found",
+      });
+    }
+
+    // Authorization check - only sender can delete
+    if (message.senderId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
+
+    await Message.findByIdAndDelete(req.params.id);
+
+    res.json({
+      success: true,
+      message: "Message deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete message error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete message",
     });
   }
 };
@@ -165,4 +260,5 @@ module.exports = {
   getConversations,
   getMessages,
   getUnreadCount,
+  deleteMessage,
 };

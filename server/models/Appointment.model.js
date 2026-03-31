@@ -21,89 +21,85 @@ const appointmentSchema = new mongoose.Schema(
     },
     duration: {
       type: Number,
-      default: 30,
-      min: 15,
+      default: 30, // minutes
+      required: true,
     },
     status: {
       type: String,
-      enum: ["scheduled", "confirmed", "completed", "cancelled"],
+      enum: [
+        "scheduled",
+        "confirmed",
+        "in-progress",
+        "completed",
+        "cancelled",
+        "no-show",
+      ],
       default: "scheduled",
+      required: true,
     },
     type: {
       type: String,
-      enum: ["consultation", "follow-up", "routine-checkup"],
-      default: "consultation",
+      enum: ["consultation", "follow-up", "emergency", "routine-checkup"],
+      required: true,
     },
     reason: {
       type: String,
       required: true,
-      trim: true,
     },
-    notes: {
-      type: String,
-      trim: true,
-      default: "",
+    notes: String,
+    providerNotes: String,
+    diagnosis: String,
+    prescription: [String],
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
-    cancellationReason: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-    cancelledAt: {
-      type: Date,
-      default: null,
-    },
-    completedAt: {
-      type: Date,
-      default: null,
-    },
+    cancellationReason: String,
+    cancelledAt: Date,
+    completedAt: Date,
   },
   {
     timestamps: true,
   },
 );
 
+// Compound indexes for efficient queries
 appointmentSchema.index({ patientId: 1, scheduledAt: -1 });
 appointmentSchema.index({ providerId: 1, scheduledAt: -1 });
+appointmentSchema.index({ status: 1, scheduledAt: 1 });
 
+// Virtual for end time
 appointmentSchema.virtual("endsAt").get(function () {
-  return new Date(this.scheduledAt.getTime() + this.duration * 60 * 1000);
+  return new Date(this.scheduledAt.getTime() + this.duration * 60000);
 });
 
+// Static method to check availability
 appointmentSchema.statics.isSlotAvailable = async function (
   providerId,
   scheduledAt,
-  duration = 30,
-  excludeId = null,
+  duration,
 ) {
-  const start = new Date(scheduledAt);
-  const end = new Date(start.getTime() + duration * 60 * 1000);
+  const endTime = new Date(scheduledAt.getTime() + duration * 60000);
 
-  const query = {
+  const conflictingAppointment = await this.findOne({
     providerId,
-    status: { $in: ["scheduled", "confirmed"] },
-    scheduledAt: {
-      $lt: end,
-      $gte: new Date(start.getTime() - 6 * 60 * 60 * 1000),
-    },
-  };
-
-  if (excludeId) {
-    query._id = { $ne: excludeId };
-  }
-
-  const existingAppointments = await this.find(query);
-
-  const hasConflict = existingAppointments.some((appointment) => {
-    const existingStart = new Date(appointment.scheduledAt);
-    const existingEnd = new Date(
-      existingStart.getTime() + appointment.duration * 60 * 1000,
-    );
-
-    return start < existingEnd && end > existingStart;
+    status: { $in: ["scheduled", "confirmed", "in-progress"] },
+    $or: [
+      {
+        scheduledAt: { $lt: endTime },
+        $expr: {
+          $gt: [
+            { $add: ["$scheduledAt", { $multiply: ["$duration", 60000] }] },
+            scheduledAt,
+          ],
+        },
+      },
+    ],
   });
 
-  return !hasConflict;
+  return !conflictingAppointment;
 };
 
-module.exports = mongoose.model("Appointment", appointmentSchema);
+const Appointment = mongoose.model("Appointment", appointmentSchema);
+
+module.exports = Appointment;
