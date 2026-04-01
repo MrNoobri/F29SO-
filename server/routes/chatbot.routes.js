@@ -1,9 +1,15 @@
 const express = require("express");
-const { sendChatMessage } = require("../controllers/chatbot.controller");
+const router = express.Router();
+const chatbotController = require("../controllers/chatbot.controller");
 const { authenticate } = require("../middleware/auth.middleware");
 
-const router = express.Router();
+// All routes require authentication
+router.use(authenticate);
 
-router.post("/message", authenticate, sendChatMessage);
+// Send message to chatbot
+router.post("/message", chatbotController.sendChatMessage);
+
+// Get suggested questions
+router.get("/suggestions", chatbotController.getSuggestedQuestions);
 
 module.exports = router;
