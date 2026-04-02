@@ -999,6 +999,18 @@ async function seedDatabase() {
     }
     console.log("  ✓ Created gamification stats for 3 patients");
 
+    // Generate and seed recipes
+    console.log("\nSeeding recipes...");
+    await Recipe.deleteMany({});
+    const recipes = generateRecipes();
+    await Recipe.insertMany(recipes);
+    const proteinCount = recipes.filter((r) => r.category === "high-protein").length;
+    const carbCount = recipes.filter((r) => r.category === "high-carb").length;
+    const fatCount = recipes.filter((r) => r.category === "high-fat").length;
+    console.log(
+      `  ✓ Created ${recipes.length} recipes (${proteinCount} high-protein, ${carbCount} high-carb, ${fatCount} high-fat)`,
+    );
+
     // Generate alerts
     console.log("\nGenerating alerts...");
     const alerts = generateAlerts(patients);
