@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import MetricChart from "@/components/health/MetricChart";
 import MetricRing from "@/components/dashboard/MetricRing";
-import { METRIC_CONFIG } from "@/components/patient/FitMetricTile";
+import { METRIC_CONFIG } from "@/components/patient/metricConfig";
 import { Button } from "@/components/ui/button";
 import { healthMetricsAPI } from "@/api";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,6 @@ export default function MetricDetailModal({
   onClose,
   onMetricAdded,
 }) {
-  const overlayRef = useRef(null);
   const [quickValue, setQuickValue] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -99,15 +98,11 @@ export default function MetricDetailModal({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          ref={overlayRef}
           className="fixed inset-0 z-50 flex items-center justify-center px-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
-          onClick={(e) => {
-            if (e.target === overlayRef.current) onClose();
-          }}
         >
           {/* Backdrop blur */}
           <motion.div
@@ -115,6 +110,7 @@ export default function MetricDetailModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            onClick={onClose}
           />
 
           {/* Content container — two panels side by side */}
@@ -129,6 +125,7 @@ export default function MetricDetailModal({
               damping: 26,
               delay: 0.05,
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* ── Left: Metric Summary Card ── */}
             <motion.div

@@ -124,7 +124,96 @@ const getOrCreateStats = async (userId) => {
   if (!stats) {
     stats = await UserStats.create({ userId });
   }
+  normalizeAchievements(stats);
   return stats;
+};
+
+const normalizeAchievements = (stats) => {
+  const currentAchievements = Array.isArray(stats?.achievements)
+    ? stats.achievements
+    : [];
+
+  const originalSnapshot = JSON.stringify(currentAchievements);
+  const byKey = new Map();
+
+  for (const achievement of currentAchievements) {
+    if (!achievement?.type || !achievement?.tier) continue;
+
+    const def = ACHIEVEMENT_DEFS[achievement.type];
+    const tierDef = def?.tiers?.[achievement.tier];
+    const key = `${achievement.type}_${achievement.tier}`;
+    const currentStat = def?.getStat ? def.getStat(stats) : 0;
+    const normalized = {
+      type: achievement.type,
+      tier: achievement.tier,
+      title: achievement.title || def?.title || achievement.type,
+      description:
+        achievement.description || tierDef?.description || "Achievement unlocked",
+      icon: achievement.icon || def?.icon || "",
+      unlockedAt: achievement.unlockedAt || stats.updatedAt || new Date(),
+      progress: {
+        current: Math.max(achievement.progress?.current ?? 0, currentStat ?? 0),
+        target: achievement.progress?.target ?? tierDef?.target ?? 0,
+      },
+    };
+
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, normalized);
+      continue;
+    }
+
+    const normalizedUnlockedAt = new Date(normalized.unlockedAt).getTime() || 0;
+    const existingUnlockedAt = new Date(existing.unlockedAt).getTime() || 0;
+    const shouldReplace =
+      normalized.progress.current > existing.progress.current ||
+      normalizedUnlockedAt > existingUnlockedAt;
+
+    byKey.set(
+      key,
+      shouldReplace
+        ? {
+            ...existing,
+            ...normalized,
+            progress: {
+              current: Math.max(
+                existing.progress?.current ?? 0,
+                normalized.progress?.current ?? 0,
+              ),
+              target: Math.max(
+                existing.progress?.target ?? 0,
+                normalized.progress?.target ?? 0,
+              ),
+            },
+          }
+        : {
+            ...normalized,
+            ...existing,
+            progress: {
+              current: Math.max(
+                existing.progress?.current ?? 0,
+                normalized.progress?.current ?? 0,
+              ),
+              target: Math.max(
+                existing.progress?.target ?? 0,
+                normalized.progress?.target ?? 0,
+              ),
+            },
+          },
+    );
+  }
+
+  const nextAchievements = Array.from(byKey.values()).sort((a, b) => {
+    const aTime = new Date(a.unlockedAt).getTime() || 0;
+    const bTime = new Date(b.unlockedAt).getTime() || 0;
+    return aTime - bTime;
+  });
+
+  const normalizedSnapshot = JSON.stringify(nextAchievements);
+  if (originalSnapshot === normalizedSnapshot) return false;
+
+  stats.achievements = nextAchievements;
+  return true;
 };
 
 // ── Helper: Check if date is today ──
@@ -381,11 +470,12 @@ const getStats = async (req, res) => {
     // Refresh challenges if stale
     const dailyRefreshed = refreshDailyChallenges(stats);
     const weeklyRefreshed = refreshWeeklyChallenges(stats);
+    const achievementsNormalized = normalizeAchievements(stats);
 
     // Recalculate wellness score
     stats.wellnessScore = await calculateWellnessScore(req.user._id);
 
-    if (dailyRefreshed || weeklyRefreshed || true) {
+    if (dailyRefreshed || weeklyRefreshed || achievementsNormalized || true) {
       await stats.save();
     }
 
@@ -526,6 +616,10 @@ const getPatientStats = async (req, res) => {
           stats: {},
         },
       });
+    }
+
+    if (normalizeAchievements(stats)) {
+      await stats.save();
     }
 
     const currentLevelXP = stats.level > 1 ? xpForNextLevel(stats.level - 1) : 0;

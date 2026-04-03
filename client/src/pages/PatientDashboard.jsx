@@ -728,6 +728,7 @@ const PatientDashboard = () => {
     "bloodPressure",
   ];
   const METRIC_ORDER_KEY = "medxi_metric_order";
+  const METRIC_VISIBILITY_KEY = "medxi_metric_visibility";
   const [metricOrder, setMetricOrder] = useState(() => {
     try {
       const saved = localStorage.getItem(METRIC_ORDER_KEY);
@@ -745,14 +746,41 @@ const PatientDashboard = () => {
     } catch {}
     return defaultMetricKeys;
   });
+  const [metricVisibility, setMetricVisibility] = useState(() => {
+    const fallback = Object.fromEntries(defaultMetricKeys.map((key) => [key, true]));
+    try {
+      const saved = localStorage.getItem(METRIC_VISIBILITY_KEY);
+      if (!saved) return fallback;
+      const parsed = JSON.parse(saved);
+      if (!parsed || typeof parsed !== "object") return fallback;
+
+      return defaultMetricKeys.reduce((acc, key) => {
+        acc[key] = typeof parsed[key] === "boolean" ? parsed[key] : true;
+        return acc;
+      }, {});
+    } catch {
+      return fallback;
+    }
+  });
+
+  const visibleMetricOrder = useMemo(
+    () => metricOrder.filter((key) => metricVisibility[key] !== false),
+    [metricOrder, metricVisibility],
+  );
+  const [dashboardToggleMetric, setDashboardToggleMetric] = useState(null);
+  const isSelectedToggleMetricHidden =
+    dashboardToggleMetric != null &&
+    metricVisibility[dashboardToggleMetric] === false;
 
   // After every drag, re-sort items by their grid position (y then x)
   // and re-assign sequential 3-col positions so there are never gaps.
   const handleMetricLayoutChange = useCallback((layout) => {
     if (!layout || layout.length === 0) return;
     const sorted = [...layout].sort((a, b) => a.y - b.y || a.x - b.x);
-    const newOrder = sorted.map((item) => item.i);
+    const visibleOrder = sorted.map((item) => item.i);
     setMetricOrder((prev) => {
+      const hiddenOrder = prev.filter((item) => !visibleOrder.includes(item));
+      const newOrder = [...visibleOrder, ...hiddenOrder];
       if (prev.join() === newOrder.join()) return prev;
       try {
         localStorage.setItem(METRIC_ORDER_KEY, JSON.stringify(newOrder));
@@ -760,6 +788,44 @@ const PatientDashboard = () => {
       return newOrder;
     });
   }, []);
+
+  const toggleMetricVisibility = useCallback((metricKey) => {
+    setMetricVisibility((prev) => {
+      const next = {
+        ...prev,
+        [metricKey]: !prev[metricKey],
+      };
+      try {
+        localStorage.setItem(METRIC_VISIBILITY_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const handleMetricTileSelect = useCallback((metricKey) => {
+    setDashboardToggleMetric((prev) => (prev === metricKey ? null : metricKey));
+  }, []);
+
+  useEffect(() => {
+    if (!dashboardToggleMetric) return;
+    if (isSelectedToggleMetricHidden) return;
+
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest('[data-metric-visibility-tile="true"]')
+      ) {
+        return;
+      }
+      setDashboardToggleMetric(null);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [dashboardToggleMetric, isSelectedToggleMetricHidden]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -982,50 +1048,50 @@ const PatientDashboard = () => {
               <Card className="overflow-hidden">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg">Your Metrics</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {visibleMetricOrder.length} of {defaultMetricKeys.length} metrics visible on your dashboard
+                  </p>
                 </CardHeader>
                 <CardContent className="overflow-hidden">
-                  <DraggableGrid
-                    cols={{ lg: 3, md: 3, sm: 2, xs: 1 }}
-                    rowHeight={120}
-                    compactType="vertical"
-                    isResizable={false}
-                    persistLayout={false}
-                    onDragStart={() => {
-                      isDragging.current = true;
-                    }}
-                    onDragStop={() => {
-                      setTimeout(() => {
-                        isDragging.current = false;
-                      }, 200);
-                    }}
-                    onLayoutChange={handleMetricLayoutChange}
-                  >
-                    {metricOrder.map((key, i) => (
-                      <div
-                        key={key}
-                        data-grid={{
-                          x: i % 3,
-                          y: Math.floor(i / 3),
-                          w: 1,
-                          h: 1,
-                          minW: 1,
-                          maxW: 1,
-                          minH: 1,
-                          maxH: 1,
-                        }}
-                      >
-                        <div className="h-full cursor-grab active:cursor-grabbing">
-                          <FitMetricTile
-                            metricType={key}
-                            value={latestMetrics?.[key]?.value}
-                            onClick={() => {
-                              if (!isDragging.current) setSelectedMetric(key);
-                            }}
-                          />
+                  {visibleMetricOrder.length > 0 ? (
+                    <DraggableGrid
+                      cols={{ lg: 3, md: 3, sm: 2, xs: 1 }}
+                      rowHeight={120}
+                      compactType="vertical"
+                      isResizable={false}
+                      isDraggable={false}
+                      persistLayout={false}
+                      onLayoutChange={handleMetricLayoutChange}
+                    >
+                      {visibleMetricOrder.map((key, i) => (
+                        <div
+                          key={key}
+                          data-grid={{
+                            x: i % 3,
+                            y: Math.floor(i / 3),
+                            w: 1,
+                            h: 1,
+                            minW: 1,
+                            maxW: 1,
+                            minH: 1,
+                            maxH: 1,
+                          }}
+                        >
+                          <div className="h-full">
+                            <FitMetricTile
+                              metricType={key}
+                              value={latestMetrics?.[key]?.value}
+                              onClick={() => setSelectedMetric(key)}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </DraggableGrid>
+                      ))}
+                    </DraggableGrid>
+                  ) : (
+                    <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+                      Turn at least one metric on in the Activity tab to show it here.
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -1046,16 +1112,31 @@ const PatientDashboard = () => {
           {activeTab === "activity" && (
             <div className="space-y-8">
               <section>
-                <h3 className="text-lg font-semibold text-foreground mb-4">
-                  Metric Tiles
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {defaultMetricKeys.map((key) => (
+                <div className="mb-4 flex items-end justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Metric Tiles
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Toggle which metrics appear in the dashboard overview.
+                    </p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {visibleMetricOrder.length} visible
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {metricOrder.map((key) => (
                     <FitMetricTile
                       key={key}
                       metricType={key}
                       value={latestMetrics?.[key]?.value}
-                      onClick={() => setSelectedMetric(key)}
+                      showDashboardToggle={dashboardToggleMetric === key}
+                      isDashboardVisible={metricVisibility[key] !== false}
+                      isActivityHidden={metricVisibility[key] === false}
+                      isVisibilityControlTile
+                      onToggleDashboardVisible={() => toggleMetricVisibility(key)}
+                      onClick={() => handleMetricTileSelect(key)}
                     />
                   ))}
                 </div>
