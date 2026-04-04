@@ -1,6 +1,9 @@
 import React from "react";
 import { motion } from "framer-motion";
 
+// Stable random durations computed once at module load — never changes on re-render
+const DURATIONS = Array.from({ length: 36 }, () => 20 + Math.random() * 10);
+
 function FloatingPaths({ position }) {
   const paths = Array.from({ length: 36 }, (_, i) => ({
     id: i,
@@ -32,7 +35,7 @@ function FloatingPaths({ position }) {
               pathOffset: [0, 1, 0],
             }}
             transition={{
-              duration: 20 + Math.random() * 10,
+              duration: DURATIONS[path.id],
               repeat: Infinity,
               ease: "linear",
             }}

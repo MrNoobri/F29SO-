@@ -40,7 +40,6 @@ import MetricDetailModal from "../components/patient/MetricDetailModal";
 import MedicationDashboard from "../components/medication/MedicationDashboard";
 import MessagesTab from "../components/patient/MessagesTab";
 import AppointmentsCalendar from "../components/appointments/AppointmentsCalendar";
-import { BackgroundPaths } from "@/components/ui/background-paths";
 import {
   ExpandableChat,
   ExpandableChatHeader,
@@ -828,7 +827,7 @@ const PatientDashboard = () => {
   }, [dashboardToggleMetric, isSelectedToggleMetricHidden]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-transparent text-foreground">
       {/* ── Bottom Dock Navigation (appears after scroll) ── */}
       <AnimatePresence>
         {pastHero && (
@@ -973,8 +972,6 @@ const PatientDashboard = () => {
           opacity: pastHero ? 1 : dashboardOpacity,
         }}
       >
-        {/* Animated path lines behind dashboard */}
-        <BackgroundPaths className="opacity-30 fixed inset-0 z-0 pointer-events-none" />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 relative z-[1]">
           {/* Header actions */}
           <div className="flex justify-between items-center mb-6">

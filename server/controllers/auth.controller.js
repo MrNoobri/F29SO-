@@ -1,4 +1,8 @@
 const User = require("../models/User.model");
+const HealthMetric = require("../models/HealthMetric.model");
+const Alert = require("../models/Alert.model");
+const Appointment = require("../models/Appointment.model");
+const Message = require("../models/Message.model");
 const crypto = require("crypto");
 const { google } = require("googleapis");
 const {
@@ -811,6 +815,147 @@ const resetPassword = async (req, res) => {
   }
 };
 
+/**
+ * Update authenticated user's profile fields (personal/medical/provider info)
+ */
+const updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user || !user.isActive) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const { profile, patientInfo, providerInfo, privacySettings } = req.body;
+
+    if (profile) {
+      const allowed = ["firstName", "lastName", "phone", "dateOfBirth", "gender", "address"];
+      allowed.forEach((key) => {
+        if (profile[key] !== undefined) {
+          user.profile[key] = profile[key];
+        }
+      });
+    }
+
+    if (patientInfo && user.role === "patient") {
+      const allowed = ["emergencyContact", "bloodType", "allergies", "medications", "medicalHistory"];
+      allowed.forEach((key) => {
+        if (patientInfo[key] !== undefined) {
+          user.patientInfo[key] = patientInfo[key];
+        }
+      });
+    }
+
+    if (providerInfo && user.role === "provider") {
+      const allowed = ["specialization", "licenseNumber", "yearsOfExperience", "bio"];
+      allowed.forEach((key) => {
+        if (providerInfo[key] !== undefined) {
+          user.providerInfo[key] = providerInfo[key];
+        }
+      });
+    }
+
+    if (privacySettings) {
+      if (typeof privacySettings.shareDataWithProviders === "boolean") {
+        user.privacySettings.shareDataWithProviders = privacySettings.shareDataWithProviders;
+      }
+      if (typeof privacySettings.allowNotifications === "boolean") {
+        user.privacySettings.allowNotifications = privacySettings.allowNotifications;
+      }
+    }
+
+    await user.save();
+
+    await createAuditLog(user._id, user.role, "settings-changed", {
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+      metadata: { section: "profile" },
+    });
+
+    return res.json({ success: true, message: "Profile updated", data: { user: user.toJSON() } });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    return res.status(500).json({ success: false, message: "Failed to update profile" });
+  }
+};
+
+/**
+ * Change password while logged in — invalidates session on success (FR1.22/FR1.23)
+ */
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "Current and new password are required" });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ success: false, message: "Password must be at least 8 characters" });
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      return res.status(400).json({ success: false, message: "Password must contain at least one uppercase letter" });
+    }
+    if (!/[0-9]/.test(newPassword)) {
+      return res.status(400).json({ success: false, message: "Password must contain at least one number" });
+    }
+
+    const user = await User.findById(req.user._id).select("+password");
+    if (!user || !user.isActive) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const isValid = await user.comparePassword(currentPassword);
+    if (!isValid) {
+      return res.status(401).json({ success: false, message: "Current password is incorrect" });
+    }
+
+    user.password = newPassword;
+    user.refreshToken = null; // invalidate all sessions (FR1.23)
+    await user.save();
+
+    await createAuditLog(user._id, user.role, "password-changed", {
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    clearAuthCookies(res);
+
+    return res.json({ success: true, message: "Password changed. Please log in again." });
+  } catch (error) {
+    console.error("Change password error:", error);
+    return res.status(500).json({ success: false, message: "Failed to change password" });
+  }
+};
+
+/**
+ * Self-service account deletion — removes all user data (FR1.8)
+ */
+const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    await Promise.all([
+      HealthMetric.deleteMany({ userId }),
+      Alert.deleteMany({ userId }),
+      Appointment.deleteMany({ $or: [{ patientId: userId }, { providerId: userId }] }),
+      Message.deleteMany({ $or: [{ senderId: userId }, { recipientId: userId }] }),
+    ]);
+
+    await User.findByIdAndDelete(userId);
+
+    await createAuditLog(userId, req.user.role, "account-deleted-self", {
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    clearAuthCookies(res);
+
+    return res.json({ success: true, message: "Account deleted successfully" });
+  } catch (error) {
+    console.error("Delete account error:", error);
+    return res.status(500).json({ success: false, message: "Failed to delete account" });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -818,6 +963,9 @@ module.exports = {
   handleGoogleCallback,
   setPassword,
   updatePreferences,
+  updateProfile,
+  changePassword,
+  deleteAccount,
   refreshAccessToken,
   logout,
   getCurrentUser,

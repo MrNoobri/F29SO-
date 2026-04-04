@@ -44,6 +44,9 @@ router.post("/reset-password/:token", passwordResetLimiter, authController.reset
 router.post("/logout", authenticate, authController.logout);
 router.post("/set-password", authenticate, authController.setPassword);
 router.patch("/preferences", authenticate, authController.updatePreferences);
+router.patch("/profile", authenticate, authController.updateProfile);
+router.patch("/change-password", authenticate, authController.changePassword);
+router.delete("/account", authenticate, authController.deleteAccount);
 router.get("/me", authenticate, authController.getCurrentUser);
 router.get("/providers", authenticate, authController.getProviders);
 

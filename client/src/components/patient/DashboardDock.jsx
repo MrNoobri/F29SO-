@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -55,6 +56,12 @@ const THEME_META = {
   emerald: { label: "Emerald", color: "#059669", darkColor: "#34d399" },
 };
 
+const THEME_PICKER_WIDTH = 224;
+const THEME_PICKER_GAP = 14;
+const THEME_PICKER_VIEWPORT_GUTTER = 12;
+
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
 export default function DashboardDock({
   activeTab,
   onTabChange,
@@ -69,6 +76,11 @@ export default function DashboardDock({
   const navigate = useNavigate();
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [themePickerPosition, setThemePickerPosition] = useState({
+    left: THEME_PICKER_VIEWPORT_GUTTER,
+    bottom: 80,
+    arrowLeft: THEME_PICKER_WIDTH / 2,
+  });
   const pickerRef = useRef(null);
   const toggleRef = useRef(null);
   const mobileMenuRef = useRef(null);
@@ -90,12 +102,40 @@ export default function DashboardDock({
     }
   };
 
-  // Close picker on outside click
+  const updateThemePickerPosition = (buttonEl = toggleRef.current) => {
+    if (!buttonEl || typeof window === "undefined") return;
+
+    const rect = buttonEl.getBoundingClientRect();
+    const left = clamp(
+      rect.left + rect.width / 2 - THEME_PICKER_WIDTH / 2,
+      THEME_PICKER_VIEWPORT_GUTTER,
+      window.innerWidth - THEME_PICKER_WIDTH - THEME_PICKER_VIEWPORT_GUTTER,
+    );
+    const bottom = window.innerHeight - rect.top + THEME_PICKER_GAP;
+    const arrowLeft = clamp(
+      rect.left + rect.width / 2 - left,
+      24,
+      THEME_PICKER_WIDTH - 24,
+    );
+
+    setThemePickerPosition({ left, bottom, arrowLeft });
+  };
+
+  const handleThemeToggle = (e) => {
+    e.stopPropagation();
+    toggleRef.current = e.currentTarget;
+    if (!showThemePicker) {
+      updateThemePickerPosition(e.currentTarget);
+    }
+    setShowThemePicker((v) => !v);
+  };
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
         setShowMobileMenu(false);
       }
+
       if (
         pickerRef.current &&
         !pickerRef.current.contains(e.target) &&
@@ -105,11 +145,10 @@ export default function DashboardDock({
         setShowThemePicker(false);
       }
     };
-    if (showThemePicker) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
+
+    document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showThemePicker]);
+  }, []);
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -123,6 +162,20 @@ export default function DashboardDock({
     return () => document.removeEventListener("keydown", handleEscape);
   }, []);
 
+  useEffect(() => {
+    if (!showThemePicker) return;
+
+    const syncThemePickerPosition = () => updateThemePickerPosition();
+
+    window.addEventListener("resize", syncThemePickerPosition);
+    window.addEventListener("scroll", syncThemePickerPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", syncThemePickerPosition);
+      window.removeEventListener("scroll", syncThemePickerPosition, true);
+    };
+  }, [showThemePicker]);
+
   const renderDockItem = (item) => {
     const Icon = item.icon;
     const isActive = activeTab === item.id;
@@ -130,110 +183,130 @@ export default function DashboardDock({
     return (
       <DockItem
         key={item.id}
-        className={`relative cursor-pointer rounded-full transition-colors ${
+        className={cn(
+          "relative cursor-pointer rounded-full transition-colors",
           isActive
             ? "bg-primary/20 text-primary"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
+            : "text-muted-foreground hover:text-foreground",
+        )}
         onClick={() => handleNavClick(item.id)}
       >
         <DockIcon>
-          <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
+          <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
         </DockIcon>
         <DockLabel>{item.label}</DockLabel>
         {isActive && (
-          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+          <span className="absolute -bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />
         )}
       </DockItem>
     );
   };
 
+  const themePicker =
+    typeof document !== "undefined"
+      ? createPortal(
+          <AnimatePresence>
+            {showThemePicker && (
+              <motion.div
+                key="theme-picker"
+                ref={pickerRef}
+                initial={{ opacity: 0, y: 12, scale: 0.92 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12, scale: 0.92 }}
+                transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                className="fixed z-[80] w-56"
+                style={{
+                  left: themePickerPosition.left,
+                  bottom: themePickerPosition.bottom,
+                }}
+              >
+                <div className="relative rounded-xl border border-border/50 bg-background/90 p-3 shadow-2xl backdrop-blur-xl">
+                  <div
+                    className="absolute top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-border/50 bg-background/90"
+                    style={{ left: themePickerPosition.arrowLeft }}
+                    aria-hidden="true"
+                  />
+
+                  <div className="mb-3 flex flex-col items-center gap-2 px-1">
+                    <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      Mode
+                    </span>
+                    <button
+                      onClick={() => setMode(mode === "dark" ? "light" : "dark")}
+                      className={cn(
+                        "relative flex h-8 w-16 items-center rounded-full p-0.5 transition-colors duration-300",
+                        mode === "dark" ? "bg-primary/30" : "bg-muted",
+                      )}
+                    >
+                      <motion.div
+                        layout
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        className={cn(
+                          "flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm",
+                          mode === "dark" ? "ml-auto" : "ml-0",
+                        )}
+                      >
+                        {mode === "dark" ? (
+                          <Moon className="h-3.5 w-3.5" />
+                        ) : (
+                          <Sun className="h-3.5 w-3.5" />
+                        )}
+                      </motion.div>
+                    </button>
+                  </div>
+
+                  <div className="mb-3 h-px bg-border/50" />
+
+                  <div className="space-y-1">
+                    {themes.map((t) => {
+                      const meta = THEME_META[t] || {
+                        label: t,
+                        color: "#888",
+                        darkColor: "#aaa",
+                      };
+                      const isActive = theme === t;
+
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => {
+                            setTheme(t);
+                            setShowThemePicker(false);
+                          }}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-all",
+                            isActive
+                              ? "bg-primary/15 text-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+                              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                          )}
+                        >
+                          <span
+                            className="h-5 w-5 shrink-0 rounded-full border-2 border-background shadow-sm"
+                            style={{
+                              background: `linear-gradient(135deg, ${meta.color}, ${meta.darkColor})`,
+                            }}
+                          />
+                          <span className="flex-1 text-left font-medium">
+                            {meta.label}
+                          </span>
+                          {isActive && <Check className="h-4 w-4 text-primary" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body,
+        )
+      : null;
+
   return (
     <div
-      className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-[100vw] ${className || ""}`}
+      className={`fixed bottom-4 left-1/2 z-50 max-w-[100vw] -translate-x-1/2 ${className || ""}`}
     >
-      {/* Theme Picker Popup */}
-      <AnimatePresence>
-        {showThemePicker && (
-          <motion.div
-            ref={pickerRef}
-            initial={{ opacity: 0, y: 12, scale: 0.92 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.92 }}
-            transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-56 rounded-xl bg-background/90 backdrop-blur-xl border border-border/50 shadow-2xl p-3 z-[60]"
-          >
-            {/* Light/Dark toggle */}
-            <div className="flex items-center justify-between mb-3 px-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Mode
-              </span>
-              <button
-                onClick={() => setMode(mode === "dark" ? "light" : "dark")}
-                className={cn(
-                  "relative flex items-center w-14 h-7 rounded-full transition-colors duration-300 p-0.5",
-                  mode === "dark" ? "bg-primary/30" : "bg-muted",
-                )}
-              >
-                <motion.div
-                  layout
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  className={cn(
-                    "flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground shadow-sm",
-                    mode === "dark" ? "ml-auto" : "ml-0",
-                  )}
-                >
-                  {mode === "dark" ? (
-                    <Moon className="w-3.5 h-3.5" />
-                  ) : (
-                    <Sun className="w-3.5 h-3.5" />
-                  )}
-                </motion.div>
-              </button>
-            </div>
-
-            <div className="h-px bg-border/50 mb-3" />
-
-            {/* Theme swatches */}
-            <div className="space-y-1">
-              {themes.map((t) => {
-                const meta = THEME_META[t] || {
-                  label: t,
-                  color: "#888",
-                  darkColor: "#aaa",
-                };
-                const isActive = theme === t;
-                return (
-                  <button
-                    key={t}
-                    onClick={() => {
-                      setTheme(t);
-                      setShowThemePicker(false);
-                    }}
-                    className={cn(
-                      "flex items-center gap-3 w-full px-2.5 py-2 rounded-lg transition-all text-sm",
-                      isActive
-                        ? "bg-primary/15 text-foreground"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                    )}
-                  >
-                    <span
-                      className="w-5 h-5 rounded-full border-2 border-background shadow-sm shrink-0"
-                      style={{
-                        background: `linear-gradient(135deg, ${meta.color}, ${meta.darkColor})`,
-                      }}
-                    />
-                    <span className="font-medium flex-1 text-left">
-                      {meta.label}
-                    </span>
-                    {isActive && <Check className="w-4 h-4 text-primary" />}
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {themePicker}
 
       <AnimatePresence>
         {showMobileMenu && (
@@ -253,7 +326,7 @@ export default function DashboardDock({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.96 }}
               transition={{ type: "spring", stiffness: 340, damping: 28 }}
-              className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-[min(22rem,calc(100vw-1.5rem))] rounded-3xl border border-border/60 bg-background/95 p-4 shadow-2xl backdrop-blur-xl md:hidden"
+              className="absolute bottom-full left-1/2 mb-3 w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 rounded-3xl border border-border/60 bg-background/95 p-4 shadow-2xl backdrop-blur-xl md:hidden"
             >
               <div className="mb-4 flex items-center justify-between">
                 <div>
@@ -347,9 +420,8 @@ export default function DashboardDock({
         magnification={60}
         distance={100}
         panelHeight={56}
-        className="bg-background/80 backdrop-blur-xl border border-border/50 shadow-2xl"
+        className="border border-border/50 bg-background/80 shadow-2xl backdrop-blur-xl"
       >
-        {/* Profile */}
         <div className="hidden md:contents">
           <DockItem
             className="cursor-pointer rounded-full bg-gradient-to-br from-primary to-primary/60 text-primary-foreground"
@@ -387,13 +459,12 @@ export default function DashboardDock({
             onClick={() => setShowMobileMenu((prev) => !prev)}
           >
             <DockIcon>
-              <Menu className="w-5 h-5" strokeWidth={2} />
+              <Menu className="h-5 w-5" strokeWidth={2} />
             </DockIcon>
             <DockLabel>More</DockLabel>
           </DockItem>
         </div>
 
-        {/* Theme toggle */}
         <div className="hidden md:contents">
           <DockItem
             className={cn(
@@ -402,18 +473,14 @@ export default function DashboardDock({
                 ? "bg-primary/20 text-primary"
                 : "text-muted-foreground hover:text-foreground",
             )}
-            onClick={(e) => {
-              toggleRef.current = e.currentTarget;
-              setShowThemePicker((v) => !v);
-            }}
+            onClick={handleThemeToggle}
           >
             <DockIcon>
-              <Palette className="w-5 h-5" strokeWidth={2} />
+              <Palette className="h-5 w-5" strokeWidth={2} />
             </DockIcon>
             <DockLabel>Theme</DockLabel>
           </DockItem>
 
-          {/* Logout */}
           <DockItem
             className="cursor-pointer rounded-full text-muted-foreground hover:text-red-500"
             onClick={() => {
@@ -422,7 +489,7 @@ export default function DashboardDock({
             }}
           >
             <DockIcon>
-              <LogOut className="w-5 h-5" strokeWidth={2} />
+              <LogOut className="h-5 w-5" strokeWidth={2} />
             </DockIcon>
             <DockLabel>Sign Out</DockLabel>
           </DockItem>

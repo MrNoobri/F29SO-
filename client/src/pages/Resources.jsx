@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, BookOpen, Clock, ChevronDown, Sparkles } from "lucide-react";
+import { BookOpen, Clock, ChevronDown, Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import DashboardDock from "../components/patient/DashboardDock";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { BackgroundPaths } from "@/components/ui/background-paths";
 import { healthArticles, articleCategories } from "../data/healthArticles";
 
 const CATEGORY_COLORS = {
@@ -42,13 +41,7 @@ export default function Resources() {
   };
 
   return (
-    <div className="relative min-h-screen bg-background overflow-hidden">
-      <BackgroundPaths className="opacity-30 fixed inset-0 z-0 pointer-events-none" />
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute top-1/4 left-1/4 w-[28rem] h-[28rem] rounded-full blur-3xl opacity-60 bg-[var(--bg-effect-1)]" />
-        <div className="absolute bottom-1/3 right-1/4 w-[22rem] h-[22rem] rounded-full blur-3xl opacity-50 bg-[var(--bg-effect-2)]" />
-        <div className="absolute top-2/3 left-1/2 w-[18rem] h-[18rem] rounded-full blur-3xl opacity-40 bg-[var(--bg-effect-3)]" />
-      </div>
+    <div className="relative min-h-screen bg-transparent">
       <DashboardDock
         activeTab="resources"
         onTabChange={handleSidebarNav}
@@ -59,24 +52,14 @@ export default function Resources() {
         <div className="w-full max-w-5xl px-4 sm:px-6 lg:px-8 py-8 pb-28">
           {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                  <BookOpen className="w-8 h-8 text-primary" />
-                  Health Resources
-                </h1>
-                <p className="text-muted-foreground mt-2">
-                  Evidence-based articles to support your wellness journey
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => navigate(-1)}
-                className="gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                <BookOpen className="w-8 h-8 text-primary" />
+                Health Resources
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Evidence-based articles to support your wellness journey
+              </p>
             </div>
           </div>
 

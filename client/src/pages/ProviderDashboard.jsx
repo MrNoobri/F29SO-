@@ -26,7 +26,6 @@ import MessagesTab from "../components/provider/MessagesTab";
 import AlertsTab from "../components/provider/AlertsTab";
 import { appointmentsAPI, alertsAPI, messagesAPI } from "../api";
 import DashboardDock from "../components/patient/DashboardDock";
-import { BackgroundPaths } from "@/components/ui/background-paths";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -342,8 +341,6 @@ const ProviderDashboard = () => {
         className="relative z-10 w-full min-h-screen pb-28 transition-[margin] duration-300"
         style={{ opacity: dashboardOpacity, y: dashboardY }}
       >
-        {/* Animated path lines behind dashboard */}
-        <BackgroundPaths className="opacity-30 fixed inset-0 z-0 pointer-events-none" />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 relative z-[1]">
           <div id="dashboard-tabs">
             {/* Tab Content */}

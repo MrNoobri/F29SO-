@@ -436,14 +436,6 @@ const Messages = () => {
 
         {/* ── Desktop top bar ── */}
         <div className="flex-none flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="p-1.5 rounded-full hover:bg-muted transition-colors shrink-0"
-            aria-label="Back to dashboard"
-          >
-            <ArrowLeft className="w-5 h-5 text-foreground" />
-          </button>
-
           <h1 className="font-bold text-lg text-foreground">Messages</h1>
 
           <div className="flex-1" />

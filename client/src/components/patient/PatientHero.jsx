@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { SplineScene } from "@/components/ui/splite";
+import { SplineScene, preloadSplineScene } from "@/components/ui/splite";
 import { Spotlight } from "@/components/ui/spotlight";
 import { BackgroundPaths } from "@/components/ui/background-paths";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,12 @@ export default function PatientHero({ userName, heroRef }) {
 
   // ── Mouse tracking for Spline 3D follow ──
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isSceneReady, setIsSceneReady] = useState(false);
   const heroContainer = useRef(null);
+
+  useEffect(() => {
+    preloadSplineScene().catch(() => {});
+  }, []);
 
   const handleMouseMove = useCallback((e) => {
     if (!heroContainer.current) return;
@@ -97,17 +102,53 @@ export default function PatientHero({ userName, heroRef }) {
 
       {/* Spline 3D scene — follows cursor position */}
       <div
-        className="absolute right-[-5%] top-0 w-[65%] h-full hidden lg:block opacity-80"
+        className="absolute right-[-5%] top-0 hidden h-full w-[65%] lg:block"
         style={{
           transform: `translate3d(${splineTranslateX}px, ${splineTranslateY}px, 0) rotateY(${splineRotateY}deg) rotateX(${splineRotateX}deg)`,
           transition: "transform 0.15s ease-out",
           perspective: "1000px",
         }}
       >
-        <SplineScene
-          scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-          className="w-full h-full"
-        />
+        <div className="relative h-full w-full">
+          <motion.div
+            className={cn(
+              "absolute inset-0 rounded-[2rem] border border-border/40 bg-gradient-to-br from-primary/10 via-background/40 to-primary/5 backdrop-blur-sm",
+              isSceneReady && "pointer-events-none",
+            )}
+            initial={false}
+            animate={{
+              opacity: isSceneReady ? 0 : 1,
+              scale: isSceneReady ? 0.98 : 1,
+            }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+          >
+            <div className="flex h-full items-center justify-center">
+              <div className="text-center">
+                <div className="mx-auto mb-4 h-14 w-14 rounded-full border border-primary/20 bg-primary/10" />
+                <p className="text-sm text-muted-foreground">
+                  Preparing MEDXI assistant...
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            className="h-full w-full opacity-80"
+            initial={false}
+            animate={{
+              opacity: isSceneReady ? 1 : 0,
+              y: isSceneReady ? 0 : 16,
+              filter: isSceneReady ? "blur(0px)" : "blur(10px)",
+            }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <SplineScene
+              scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+              className="w-full h-full"
+              onLoad={() => setIsSceneReady(true)}
+            />
+          </motion.div>
+        </div>
       </div>
 
       {/* Scroll-down indicator */}

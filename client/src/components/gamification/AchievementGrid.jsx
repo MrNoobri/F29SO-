@@ -13,7 +13,6 @@ const ALL_ACHIEVEMENTS = [
   { type: "streak_master", title: "Streak Master", icon: "🔥", tiers: ["bronze", "silver", "gold"] },
   { type: "daily_devotee", title: "Daily Devotee", icon: "📋", tiers: ["bronze", "silver", "gold"] },
   { type: "vital_signs_pro", title: "Vital Signs Pro", icon: "📊", tiers: ["bronze", "silver", "gold"] },
-  { type: "meal_planner", title: "Meal Planner", icon: "🍽️", tiers: ["bronze", "silver", "gold"] },
   { type: "med_adherent", title: "Med Adherent", icon: "💊", tiers: ["bronze", "silver", "gold"] },
   { type: "journal_keeper", title: "Journal Keeper", icon: "📝", tiers: ["bronze", "silver", "gold"] },
   { type: "conversation_starter", title: "Conversation Starter", icon: "💬", tiers: ["bronze", "silver", "gold"] },

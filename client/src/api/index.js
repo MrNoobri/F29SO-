@@ -14,6 +14,9 @@ export const authAPI = {
   forgotPassword: (email) => api.post("/auth/forgot-password", { email }),
   resetPassword: (token, data) =>
     api.post(`/auth/reset-password/${token}`, data),
+  updateProfile: (data) => api.patch("/auth/profile", data),
+  changePassword: (data) => api.patch("/auth/change-password", data),
+  deleteAccount: () => api.delete("/auth/account"),
 };
 
 // Health Metrics APIs

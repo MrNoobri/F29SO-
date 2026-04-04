@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  ArrowLeft,
   HelpCircle,
   ChevronDown,
   Star,
@@ -16,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { faqItems, faqCategories } from "../data/faqData";
-import { BackgroundPaths } from "@/components/ui/background-paths";
 
 const FEEDBACK_CATEGORIES = [
   "Bug Report",
@@ -83,13 +81,7 @@ export default function Help() {
   };
 
   return (
-    <div className="relative min-h-screen bg-background overflow-hidden">
-      <BackgroundPaths className="opacity-30 fixed inset-0 z-0 pointer-events-none" />
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute top-1/4 left-1/4 w-[28rem] h-[28rem] rounded-full blur-3xl opacity-60 bg-[var(--bg-effect-1)]" />
-        <div className="absolute bottom-1/3 right-1/4 w-[22rem] h-[22rem] rounded-full blur-3xl opacity-50 bg-[var(--bg-effect-2)]" />
-        <div className="absolute top-2/3 left-1/2 w-[18rem] h-[18rem] rounded-full blur-3xl opacity-40 bg-[var(--bg-effect-3)]" />
-      </div>
+    <div className="relative min-h-screen bg-transparent">
       <DashboardDock
         activeTab="help"
         onTabChange={handleSidebarNav}
@@ -100,24 +92,14 @@ export default function Help() {
         <div className="w-full max-w-5xl px-4 sm:px-6 lg:px-8 py-8 pb-28">
           {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                  <HelpCircle className="w-8 h-8 text-primary" />
-                  Help Center
-                </h1>
-                <p className="text-muted-foreground mt-2">
-                  Find answers to common questions and share your feedback
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => navigate(-1)}
-                className="gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                <HelpCircle className="w-8 h-8 text-primary" />
+                Help Center
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Find answers to common questions and share your feedback
+              </p>
             </div>
           </div>
 
