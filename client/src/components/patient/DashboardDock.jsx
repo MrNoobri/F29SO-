@@ -232,7 +232,9 @@ export default function DashboardDock({
                       Mode
                     </span>
                     <button
-                      onClick={() => setMode(mode === "dark" ? "light" : "dark")}
+                      onClick={() => {
+                        setMode(mode === "dark" ? "light" : "dark");
+                      }}
                       className={cn(
                         "relative flex h-8 w-16 items-center rounded-full p-0.5 transition-colors duration-300",
                         mode === "dark" ? "bg-primary/30" : "bg-muted",
@@ -271,7 +273,6 @@ export default function DashboardDock({
                           key={t}
                           onClick={() => {
                             setTheme(t);
-                            setShowThemePicker(false);
                           }}
                           className={cn(
                             "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-all",

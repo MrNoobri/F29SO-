@@ -6,11 +6,14 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { useLocation } from "react-router";
 import { authAPI } from "../api";
 import { useAuth } from "./AuthContext";
 
 const THEMES = ["crimson", "medical", "midnight", "emerald"];
 const MODES = ["light", "dark"];
+const DEFAULT_THEME = "crimson";
+const DEFAULT_MODE = "dark";
 
 const THEME_TOKENS = {
   crimson: {
@@ -195,6 +198,85 @@ const textOnColor = (hex) => {
   return yiq >= 128 ? "#0f172a" : "#f8fafc";
 };
 
+const getSafeTheme = (value, fallback = DEFAULT_THEME) =>
+  THEMES.includes(value) ? value : fallback;
+
+const getSafeMode = (value, fallback = DEFAULT_MODE) =>
+  MODES.includes(value) ? value : fallback;
+
+const isLandingRoute = (pathname) => pathname === "/";
+
+const isPublicCrimsonRoute = (pathname) =>
+  isLandingRoute(pathname) ||
+  pathname === "/login" ||
+  pathname === "/register" ||
+  pathname === "/forgot-password" ||
+  pathname.startsWith("/reset-password/") ||
+  pathname.startsWith("/verify-email/");
+
+const readCachedUserPreferences = () => {
+  if (typeof window === "undefined") {
+    return { theme: null, mode: null };
+  }
+
+  try {
+    const rawUser = localStorage.getItem("user");
+    if (!rawUser) {
+      return { theme: null, mode: null };
+    }
+
+    const parsedUser = JSON.parse(rawUser);
+    return {
+      theme: parsedUser?.uiPreferences?.theme ?? null,
+      mode: parsedUser?.uiPreferences?.mode ?? null,
+    };
+  } catch {
+    return { theme: null, mode: null };
+  }
+};
+
+const getStoredMode = () => {
+  if (typeof window === "undefined") {
+    return DEFAULT_MODE;
+  }
+
+  return getSafeMode(localStorage.getItem("themeMode"), DEFAULT_MODE);
+};
+
+const getInitialThemeState = () => {
+  if (typeof window === "undefined") {
+    return { theme: DEFAULT_THEME, mode: DEFAULT_MODE };
+  }
+
+  const pathname = window.location.pathname;
+  const cachedUserPreferences = readCachedUserPreferences();
+
+  if (isLandingRoute(pathname)) {
+    return { theme: DEFAULT_THEME, mode: DEFAULT_MODE };
+  }
+
+  if (isPublicCrimsonRoute(pathname)) {
+    return {
+      theme: DEFAULT_THEME,
+      mode: getSafeMode(
+        cachedUserPreferences.mode || localStorage.getItem("themeMode"),
+        DEFAULT_MODE,
+      ),
+    };
+  }
+
+  return {
+    theme: getSafeTheme(
+      cachedUserPreferences.theme || localStorage.getItem("theme"),
+      DEFAULT_THEME,
+    ),
+    mode: getSafeMode(
+      cachedUserPreferences.mode || localStorage.getItem("themeMode"),
+      DEFAULT_MODE,
+    ),
+  };
+};
+
 const ThemeContext = createContext(null);
 
 export const useTheme = () => {
@@ -207,17 +289,15 @@ export const useTheme = () => {
 
 export const ThemeProvider = ({ children }) => {
   const { user, updateUser } = useAuth();
+  const location = useLocation();
+  const initialThemeState = useMemo(() => getInitialThemeState(), []);
 
-  const [theme, setThemeState] = useState(
-    localStorage.getItem("theme") || "crimson",
-  );
-  const [mode, setModeState] = useState(
-    localStorage.getItem("themeMode") || "dark",
-  );
+  const [theme, setThemeState] = useState(initialThemeState.theme);
+  const [mode, setModeState] = useState(initialThemeState.mode);
 
   const applyThemeToDocument = useCallback((nextTheme, nextMode) => {
-    const safeTheme = THEMES.includes(nextTheme) ? nextTheme : "crimson";
-    const safeMode = MODES.includes(nextMode) ? nextMode : "dark";
+    const safeTheme = getSafeTheme(nextTheme);
+    const safeMode = getSafeMode(nextMode);
     const palette = THEME_TOKENS[safeTheme][safeMode];
 
     const root = document.documentElement;
@@ -280,37 +360,62 @@ export const ThemeProvider = ({ children }) => {
       ),
     );
     root.style.setProperty("--ring", hexToHslChannels(palette.primary));
-
-    localStorage.setItem("theme", safeTheme);
-    localStorage.setItem("themeMode", safeMode);
   }, []);
 
   useEffect(() => {
     applyThemeToDocument(theme, mode);
-  }, [theme, mode, applyThemeToDocument]);
+
+    if (typeof window === "undefined") return;
+    if (isPublicCrimsonRoute(location.pathname)) return;
+
+    localStorage.setItem("theme", getSafeTheme(theme));
+    localStorage.setItem("themeMode", getSafeMode(mode));
+  }, [theme, mode, applyThemeToDocument, location.pathname]);
 
   useEffect(() => {
-    // Only apply server preferences on first login (no local choice made yet).
-    // Once the user has explicitly changed their theme locally, localStorage wins.
-    if (localStorage.getItem("themeSetByUser")) return;
+    if (isLandingRoute(location.pathname)) {
+      setThemeState((prev) => (prev !== DEFAULT_THEME ? DEFAULT_THEME : prev));
+      setModeState((prev) => (prev !== DEFAULT_MODE ? DEFAULT_MODE : prev));
+      return;
+    }
 
-    const userTheme = user?.uiPreferences?.theme;
-    const userMode = user?.uiPreferences?.mode;
+    if (isPublicCrimsonRoute(location.pathname)) {
+      const nextTheme = DEFAULT_THEME;
+      const nextMode = getSafeMode(
+        user?.uiPreferences?.mode || getStoredMode(),
+        DEFAULT_MODE,
+      );
 
-    if (!userTheme && !userMode) return;
+      setThemeState((prev) => (prev !== nextTheme ? nextTheme : prev));
+      setModeState((prev) => (prev !== nextMode ? nextMode : prev));
+      return;
+    }
 
-    const nextTheme =
-      userTheme && THEMES.includes(userTheme) ? userTheme : theme;
-    const nextMode = userMode && MODES.includes(userMode) ? userMode : mode;
+    if (!user) return;
 
-    if (nextTheme !== theme) setThemeState(nextTheme);
-    if (nextMode !== mode) setModeState(nextMode);
-  }, [user?.uiPreferences?.theme, user?.uiPreferences?.mode]);
+    const nextTheme = getSafeTheme(user?.uiPreferences?.theme, DEFAULT_THEME);
+    const nextMode = getSafeMode(
+      user?.uiPreferences?.mode,
+      getStoredMode(),
+    );
+
+    setThemeState((prev) => (prev !== nextTheme ? nextTheme : prev));
+    setModeState((prev) => (prev !== nextMode ? nextMode : prev));
+  }, [
+    location.pathname,
+    user?._id,
+    user?.uiPreferences?.theme,
+    user?.uiPreferences?.mode,
+  ]);
 
   const setTheme = async (nextTheme, persist = true) => {
-    const safeTheme = THEMES.includes(nextTheme) ? nextTheme : "midnight";
+    const safeTheme = getSafeTheme(nextTheme);
+    applyThemeToDocument(safeTheme, mode);
+    if (!isPublicCrimsonRoute(location.pathname)) {
+      localStorage.setItem("theme", safeTheme);
+      localStorage.setItem("themeMode", getSafeMode(mode));
+    }
     setThemeState(safeTheme);
-    localStorage.setItem("themeSetByUser", "1");
 
     if (persist && user) {
       try {
@@ -326,9 +431,13 @@ export const ThemeProvider = ({ children }) => {
   };
 
   const setMode = async (nextMode, persist = true) => {
-    const safeMode = MODES.includes(nextMode) ? nextMode : "light";
+    const safeMode = getSafeMode(nextMode);
+    applyThemeToDocument(theme, safeMode);
+    if (!isPublicCrimsonRoute(location.pathname)) {
+      localStorage.setItem("theme", getSafeTheme(theme));
+      localStorage.setItem("themeMode", safeMode);
+    }
     setModeState(safeMode);
-    localStorage.setItem("themeSetByUser", "1");
 
     if (persist && user) {
       try {
@@ -344,12 +453,16 @@ export const ThemeProvider = ({ children }) => {
   };
 
   const setThemeMode = async ({ nextTheme, nextMode, persist = true }) => {
-    const safeTheme = THEMES.includes(nextTheme) ? nextTheme : theme;
-    const safeMode = MODES.includes(nextMode) ? nextMode : mode;
+    const safeTheme = getSafeTheme(nextTheme, theme);
+    const safeMode = getSafeMode(nextMode, mode);
 
+    applyThemeToDocument(safeTheme, safeMode);
+    if (!isPublicCrimsonRoute(location.pathname)) {
+      localStorage.setItem("theme", safeTheme);
+      localStorage.setItem("themeMode", safeMode);
+    }
     setThemeState(safeTheme);
     setModeState(safeMode);
-    localStorage.setItem("themeSetByUser", "1");
 
     if (persist && user) {
       try {

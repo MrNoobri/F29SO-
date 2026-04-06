@@ -76,14 +76,14 @@ export const faqItems = [
     category: "Account",
     question: "How do I update my profile information?",
     answer:
-      "Click your initials avatar in the dock at the bottom of the screen to go to your Profile page, or navigate directly to /profile. From there you can update your personal details, medical information, privacy settings, and appearance preferences.",
+      "Click your initials avatar in the dock at the bottom of the screen to go to your Profile page, or navigate directly to /profile. From there you can update your personal details, medical information, and privacy settings.",
   },
   {
     id: "acc-2",
     category: "Account",
     question: "How do I change the app theme or colour scheme?",
     answer:
-      "Click the palette icon in the dock at the bottom of any page. A popup will appear with theme options (Crimson, Medical, Midnight, Emerald) and a light/dark mode toggle. Your selection is saved automatically and applies instantly.",
+      "Use the theme selector in the navigation dock at the bottom of the app. It lets you switch between Crimson, Medical, Midnight, and Emerald, plus light or dark mode, and your choice saves automatically to your account.",
   },
   {
     id: "acc-3",

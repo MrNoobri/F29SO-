@@ -130,12 +130,12 @@ const userSchema = new mongoose.Schema(
       theme: {
         type: String,
         enum: ["crimson", "medical", "midnight", "emerald"],
-        default: "midnight",
+        default: "crimson",
       },
       mode: {
         type: String,
         enum: ["light", "dark"],
-        default: "light",
+        default: "dark",
       },
     },
     isActive: {

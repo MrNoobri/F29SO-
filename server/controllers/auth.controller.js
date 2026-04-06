@@ -294,8 +294,8 @@ const updatePreferences = async (req, res) => {
     }
 
     user.uiPreferences = {
-      theme: incomingTheme || user.uiPreferences?.theme || "midnight",
-      mode: incomingMode || user.uiPreferences?.mode || "light",
+      theme: incomingTheme || user.uiPreferences?.theme || "crimson",
+      mode: incomingMode || user.uiPreferences?.mode || "dark",
     };
 
     await user.save();

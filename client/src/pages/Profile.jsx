@@ -5,7 +5,6 @@ import {
   HeartPulse,
   ShieldCheck,
   Lock,
-  Palette,
   Mail,
   Phone,
   Shield,
@@ -34,7 +33,6 @@ const TABS = [
   { id: "medical",     label: "Medical",             icon: HeartPulse,  patientOnly: true },
   { id: "privacy",     label: "Privacy & Sharing",   icon: ShieldCheck },
   { id: "security",    label: "Security",            icon: Lock },
-  { id: "preferences", label: "Preferences",         icon: Palette },
 ];
 
 const INPUT =
@@ -754,7 +752,6 @@ const Profile = () => {
       case "medical":     return <MedicalTab     user={user} onSaved={handleSaved} />;
       case "privacy":     return <PrivacyTab     user={user} onSaved={handleSaved} />;
       case "security":    return <SecurityTab />;
-      case "preferences": return <PreferencesTab user={user} onSaved={handleSaved} />;
       default:            return null;
     }
   };
@@ -767,7 +764,7 @@ const Profile = () => {
         role={user?.role || "patient"}
       />
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-36 sm:pb-40">
         {/* Page header */}
         <div className="mb-6">
           <div>
