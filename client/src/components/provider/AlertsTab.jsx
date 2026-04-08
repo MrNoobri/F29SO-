@@ -22,22 +22,22 @@ import { cn } from "@/lib/utils";
 const SEVERITY_STYLES = {
   critical: {
     border: "border-l-4 border-red-500",
-    badge: "bg-red-100 text-red-800",
+    badgeStyle: { background: "color-mix(in srgb, #ef4444 20%, var(--surface))", color: "#ef4444" },
     icon: "text-red-500",
   },
   high: {
     border: "border-l-4 border-orange-500",
-    badge: "bg-orange-100 text-orange-800",
+    badgeStyle: { background: "color-mix(in srgb, #f97316 20%, var(--surface))", color: "#f97316" },
     icon: "text-orange-500",
   },
   medium: {
     border: "border-l-4 border-yellow-500",
-    badge: "bg-yellow-100 text-yellow-800",
+    badgeStyle: { background: "color-mix(in srgb, #eab308 20%, var(--surface))", color: "#ca8a04" },
     icon: "text-yellow-500",
   },
   low: {
     border: "border-l-4 border-blue-500",
-    badge: "bg-blue-100 text-blue-800",
+    badgeStyle: { background: "color-mix(in srgb, #3b82f6 20%, var(--surface))", color: "#3b82f6" },
     icon: "text-blue-500",
   },
 };
@@ -50,9 +50,19 @@ const AlertsTab = ({ patientAlerts, patients, onPatientClick }) => {
   const [patientFilter, setPatientFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("unacknowledged");
 
+  const [acknowledgingIds, setAcknowledgingIds] = useState(new Set());
+
   const acknowledgeMutation = useMutation({
-    mutationFn: (alertId) => alertsAPI.acknowledge(alertId),
-    onSuccess: () => {
+    mutationFn: (alertId) => {
+      setAcknowledgingIds((prev) => new Set(prev).add(alertId));
+      return alertsAPI.acknowledge(alertId);
+    },
+    onSettled: (_, __, alertId) => {
+      setAcknowledgingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(alertId);
+        return next;
+      });
       queryClient.invalidateQueries({ queryKey: ["patientAlerts"] });
     },
   });
@@ -159,10 +169,8 @@ const AlertsTab = ({ patientAlerts, patients, onPatientClick }) => {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span
-                            className={cn(
-                              "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase",
-                              style.badge,
-                            )}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase"
+                            style={style.badgeStyle}
                           >
                             {alert.severity}
                           </span>
@@ -174,7 +182,7 @@ const AlertsTab = ({ patientAlerts, patients, onPatientClick }) => {
                             {alert.userId?.profile?.lastName}
                           </span>
                           {alert.isAcknowledged && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: "color-mix(in srgb, #22c55e 20%, var(--surface))", color: "#22c55e" }}>
                               <CheckCircle className="w-3 h-3 mr-1" />
                               Acknowledged
                             </span>
@@ -214,10 +222,10 @@ const AlertsTab = ({ patientAlerts, patients, onPatientClick }) => {
                         variant="outline"
                         size="sm"
                         onClick={() => acknowledgeMutation.mutate(alert._id)}
-                        disabled={acknowledgeMutation.isPending}
+                        disabled={acknowledgingIds.has(alert._id)}
                         className="ml-4 shrink-0"
                       >
-                        {acknowledgeMutation.isPending ? (
+                        {acknowledgingIds.has(alert._id) ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                         ) : (
                           <>

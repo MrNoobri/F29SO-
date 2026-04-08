@@ -17,40 +17,40 @@ import { staggerContainer } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 const STATUS_COLORS = {
-  scheduled: "bg-blue-100 text-blue-800",
-  confirmed: "bg-green-100 text-green-800",
-  "in-progress": "bg-yellow-100 text-yellow-800",
-  completed: "bg-gray-100 text-gray-600",
-  cancelled: "bg-red-100 text-red-800",
-  "no-show": "bg-orange-100 text-orange-800",
+  scheduled: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  confirmed: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+  "in-progress": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+  completed: "bg-gray-100 text-gray-600 dark:bg-gray-800/60 dark:text-gray-300",
+  cancelled: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  "no-show": "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
 };
 
 const TYPE_COLORS = {
   consultation: "bg-primary/15 text-primary",
-  "follow-up": "bg-emerald-100 text-emerald-700",
-  emergency: "bg-red-100 text-red-700",
-  "routine-checkup": "bg-slate-100 text-slate-700",
+  "follow-up": "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  emergency: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  "routine-checkup": "bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300",
 };
 
 const SEVERITY_STYLES = {
   critical: {
     border: "border-l-4 border-red-500",
-    badge: "bg-red-100 text-red-800",
+    badgeStyle: { background: "color-mix(in srgb, #ef4444 20%, var(--surface))", color: "#ef4444" },
     icon: "text-red-500",
   },
   high: {
     border: "border-l-4 border-orange-500",
-    badge: "bg-orange-100 text-orange-800",
+    badgeStyle: { background: "color-mix(in srgb, #f97316 20%, var(--surface))", color: "#f97316" },
     icon: "text-orange-500",
   },
   medium: {
     border: "border-l-4 border-yellow-500",
-    badge: "bg-yellow-100 text-yellow-800",
+    badgeStyle: { background: "color-mix(in srgb, #eab308 20%, var(--surface))", color: "#ca8a04" },
     icon: "text-yellow-500",
   },
   low: {
     border: "border-l-4 border-blue-500",
-    badge: "bg-blue-100 text-blue-800",
+    badgeStyle: { background: "color-mix(in srgb, #3b82f6 20%, var(--surface))", color: "#3b82f6" },
     icon: "text-blue-500",
   },
 };
@@ -61,6 +61,7 @@ const OverviewTab = ({
   patientAlerts,
   unreadMessages,
   onSwitchTab,
+  onPatientClick,
 }) => {
   const activeAlerts = patientAlerts?.filter((a) => !a.isAcknowledged) || [];
   const recentAlerts = activeAlerts.slice(0, 5);
@@ -169,10 +170,8 @@ const OverviewTab = ({
                         className="flex items-center gap-2 text-sm"
                       >
                         <span
-                          className={cn(
-                            "text-xs px-1.5 py-0.5 rounded font-medium",
-                            style.badge,
-                          )}
+                          className="text-xs px-1.5 py-0.5 rounded font-medium"
+                          style={style.badgeStyle}
                         >
                           {alert.severity}
                         </span>
@@ -326,9 +325,10 @@ const OverviewTab = ({
                       <div
                         key={alert._id}
                         className={cn(
-                          "p-3 rounded-lg bg-secondary/20",
+                          "p-3 rounded-lg bg-secondary/20 cursor-pointer hover:bg-secondary/30 transition-colors",
                           style.border,
                         )}
+                        onClick={() => onPatientClick && onPatientClick(alert.userId?._id)}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-start gap-2 min-w-0">
@@ -338,10 +338,8 @@ const OverviewTab = ({
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 mb-0.5">
                                 <span
-                                  className={cn(
-                                    "text-xs px-1.5 py-0.5 rounded font-medium",
-                                    style.badge,
-                                  )}
+                                  className="text-xs px-1.5 py-0.5 rounded font-medium"
+                                  style={style.badgeStyle}
                                 >
                                   {alert.severity}
                                 </span>
@@ -401,7 +399,7 @@ const OverviewTab = ({
                   <div
                     key={patient._id}
                     className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer"
-                    onClick={() => onSwitchTab("patients")}
+                    onClick={() => onPatientClick ? onPatientClick(patient._id) : onSwitchTab("patients")}
                   >
                     <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold">
                       {patient.profile?.firstName?.[0]}

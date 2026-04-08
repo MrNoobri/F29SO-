@@ -1,5 +1,6 @@
 const UserStats = require("../models/UserStats.model");
 const HealthMetric = require("../models/HealthMetric.model");
+const { providerHasPatient } = require("../utils/providerAccess");
 
 // ── Achievement Definitions ──
 const ACHIEVEMENT_DEFS = {
@@ -600,6 +601,12 @@ const claimChallenge = async (req, res) => {
 const getPatientStats = async (req, res) => {
   try {
     const { userId } = req.params;
+
+    if (req.user.role === "provider") {
+      const allowed = await providerHasPatient(req.user._id, userId);
+      if (!allowed) return res.status(403).json({ success: false, message: "Access denied" });
+    }
+
     const stats = await UserStats.findOne({ userId });
     if (!stats) {
       return res.json({

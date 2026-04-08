@@ -94,7 +94,7 @@ function App() {
       : 1;
 
   return (
-    <div className="relative min-h-screen bg-background overflow-x-hidden">
+    <div className="relative min-h-screen bg-background">
       {showPersistentBackground && (
         <div
           aria-hidden="true"

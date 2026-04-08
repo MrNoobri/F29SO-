@@ -3,6 +3,7 @@ const Alert = require("../models/Alert.model");
 const mongoose = require("mongoose");
 const { createAuditLog } = require("../middleware/audit.middleware");
 const { awardXP } = require("./gamification.controller");
+const { providerHasPatient } = require("../utils/providerAccess");
 
 /**
  * Health metric thresholds for alert generation
@@ -160,14 +161,14 @@ const getMetrics = async (req, res) => {
     const { metricType, startDate, endDate, limit = 100 } = req.query;
 
     // Authorization check
-    if (
-      req.user.role === "patient" &&
-      userId.toString() !== req.user._id.toString()
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
-      });
+    if (req.user.role === "patient" && userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+    if (req.user.role === "provider" && userId.toString() !== req.user._id.toString()) {
+      const allowed = await providerHasPatient(req.user._id, userId);
+      if (!allowed) {
+        return res.status(403).json({ success: false, message: "Access denied" });
+      }
     }
 
     const query = { userId };
@@ -221,14 +222,14 @@ const getLatestMetrics = async (req, res) => {
     const userId = req.params.userId || req.user._id;
 
     // Authorization check
-    if (
-      req.user.role === "patient" &&
-      userId.toString() !== req.user._id.toString()
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
-      });
+    if (req.user.role === "patient" && userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Access denied" });
+    }
+    if (req.user.role === "provider" && userId.toString() !== req.user._id.toString()) {
+      const allowed = await providerHasPatient(req.user._id, userId);
+      if (!allowed) {
+        return res.status(403).json({ success: false, message: "Access denied" });
+      }
     }
 
     const metricTypes = [

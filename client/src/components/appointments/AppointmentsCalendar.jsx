@@ -557,6 +557,7 @@ export default function AppointmentsCalendar() {
   } = useQuery({
     queryKey: [
       "calendarAppointments",
+      user?._id,
       dateRange.startDate.toISOString(),
       dateRange.endDate.toISOString(),
     ],

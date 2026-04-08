@@ -345,10 +345,19 @@ const Register = () => {
       };
       navigate(dashboardMap[user.role] || "/dashboard");
     } catch (submitError) {
-      setError(
+      const msg =
         submitError.response?.data?.message ||
-          "Registration failed. Please try again.",
-      );
+        "Registration failed. Please try again.";
+      setError(msg);
+      // If the error is about email or password, go back to step 1 so it's visible
+      const step1Keywords = ["email", "password", "uppercase", "number", "character"];
+      if (
+        formData.role === "patient" &&
+        patientStep === 2 &&
+        step1Keywords.some((kw) => msg.toLowerCase().includes(kw))
+      ) {
+        setPatientStep(1);
+      }
     } finally {
       setLoading(false);
     }
@@ -770,6 +779,12 @@ const Register = () => {
                         {/* Password strength meter */}
                         {formData.password && (() => {
                           const s = evaluatePasswordStrength(formData.password);
+                          const p = formData.password;
+                          const reqs = [
+                            { label: "8+ characters", met: p.length >= 8 },
+                            { label: "Uppercase letter", met: /[A-Z]/.test(p) },
+                            { label: "Number", met: /[0-9]/.test(p) },
+                          ];
                           return (
                             <div className="space-y-1.5 pt-1">
                               <div className="flex gap-1">
@@ -796,8 +811,20 @@ const Register = () => {
                                 >
                                   {s.label}
                                 </span>
-                                <span className="text-stone-500">{s.hint}</span>
                               </p>
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                                {reqs.map((r) => (
+                                  <span
+                                    key={r.label}
+                                    className={cn(
+                                      "text-xs",
+                                      r.met ? "text-emerald-400" : "text-stone-500",
+                                    )}
+                                  >
+                                    {r.met ? "✓" : "✗"} {r.label}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
                           );
                         })()}
@@ -1021,6 +1048,18 @@ const Register = () => {
                               if (formData.password.length < 8) {
                                 setError(
                                   "Password must be at least 8 characters.",
+                                );
+                                return;
+                              }
+                              if (!/[A-Z]/.test(formData.password)) {
+                                setError(
+                                  "Password must contain at least one uppercase letter.",
+                                );
+                                return;
+                              }
+                              if (!/[0-9]/.test(formData.password)) {
+                                setError(
+                                  "Password must contain at least one number.",
                                 );
                                 return;
                               }

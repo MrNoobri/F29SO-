@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import AppointmentDetailModal from "./AppointmentDetailModal";
 import { appointmentsAPI } from "../../api";
+import { useAuth } from "../../context/AuthContext";
 import { cn } from "@/lib/utils";
 
 const HOURS = Array.from({ length: 13 }, (_, i) => i + 7); // 7AM - 7PM
@@ -53,6 +54,7 @@ const STATUS_OPACITY = {
 };
 
 const CalendarTab = () => {
+  const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState("month");
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -82,6 +84,7 @@ const CalendarTab = () => {
   const { data: appointments } = useQuery({
     queryKey: [
       "calendarAppointments",
+      user?._id,
       dateRange.startDate.toISOString(),
       dateRange.endDate.toISOString(),
     ],

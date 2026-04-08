@@ -3,9 +3,13 @@ import { Search, Users } from "lucide-react";
 import PatientDetailPanel from "./PatientDetailPanel";
 import { cn } from "@/lib/utils";
 
-const PatientsTab = ({ patients }) => {
+const PatientsTab = ({ patients, selectedPatient: externalSelected, onSelectPatient: externalSetSelected }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [internalSelected, setInternalSelected] = useState(null);
+
+  // Use external state if provided, otherwise fall back to internal
+  const selectedPatient = externalSelected !== undefined ? externalSelected : internalSelected;
+  const setSelectedPatient = externalSetSelected ?? setInternalSelected;
 
   const filteredPatients = (patients || []).filter((p) => {
     if (!searchTerm) return true;
@@ -80,12 +84,12 @@ const PatientsTab = ({ patients }) => {
                 patient.patientInfo?.allergies?.length > 0) && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {patient.patientInfo?.bloodType && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, #ef4444 20%, var(--surface))", color: "#ef4444" }}>
                       {patient.patientInfo.bloodType}
                     </span>
                   )}
                   {patient.patientInfo?.allergies?.length > 0 && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "color-mix(in srgb, #f97316 20%, var(--surface))", color: "#f97316" }}>
                       {patient.patientInfo.allergies.length} allergy(ies)
                     </span>
                   )}

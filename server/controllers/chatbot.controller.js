@@ -1,4 +1,5 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const HealthMetric = require("../models/HealthMetric.model");
 
 // Check if API key is available and valid
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -44,7 +45,107 @@ IMPORTANT DISCLAIMERS (mention when relevant, but be helpful first):
 EMERGENCY PROTOCOL:
 If someone mentions: chest pain, difficulty breathing, severe bleeding, unconscious, suicide - immediately tell them to call 911 or go to ER.
 
-TONE: Helpful, practical, and supportive. Give specific, actionable advice. Be conversational and friendly. Don't be overly cautious - if someone asks for a healthy diet, give them one!`;
+TONE: Helpful, practical, and supportive. Give specific, actionable advice. Be conversational and friendly. Don't be overly cautious - if someone asks for a healthy diet, give them one!
+
+RESPONSE FORMAT:
+- Use **bold** for key terms, values, and important points
+- Use bullet points (- item) or numbered lists for multi-step advice
+- Use ## for section headings when the response has distinct sections
+- Keep responses concise — avoid unnecessary filler text
+- When the user has health data available, always reference their actual numbers in your response`;
+
+/**
+ * Fetch today's health metrics for a user and build a context string for the AI.
+ */
+const buildMetricsContext = async (userId, userGoals = {}) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const goals = {
+      steps: userGoals.steps || 10000,
+      calories: userGoals.calories || 2000,
+      sleep: userGoals.sleep || 8,
+      waterIntake: 2000, // mL — no user-defined goal yet
+    };
+
+    const metrics = {};
+
+    // Summable metrics (sum all entries today)
+    for (const type of ["steps", "calories", "waterIntake", "sleep", "distance"]) {
+      const records = await HealthMetric.find({
+        userId,
+        metricType: type,
+        timestamp: { $gte: startOfDay, $lte: endOfDay },
+      });
+      if (records.length > 0) {
+        const total = records.reduce((sum, r) => sum + (Number(r.value) || 0), 0);
+        metrics[type] = {
+          value: Math.round(total * 100) / 100,
+          unit: records[0].unit || "",
+        };
+      }
+    }
+
+    // Latest-value metrics
+    for (const type of ["heartRate", "bloodPressure", "bloodGlucose", "weight", "oxygenSaturation", "temperature"]) {
+      const latest = await HealthMetric.getLatest(userId, type);
+      if (latest) {
+        metrics[type] = { value: latest.value, unit: latest.unit || "" };
+      }
+    }
+
+    if (Object.keys(metrics).length === 0) return null;
+
+    const today = new Date().toDateString();
+    const lines = [`User's health data for today (${today}):`];
+
+    if (metrics.steps) {
+      const pct = Math.round((metrics.steps.value / goals.steps) * 100);
+      lines.push(`- Steps: ${metrics.steps.value} / ${goals.steps} (${pct}% of goal)`);
+    }
+    if (metrics.waterIntake) {
+      const pct = Math.round((metrics.waterIntake.value / goals.waterIntake) * 100);
+      lines.push(`- Water intake: ${metrics.waterIntake.value} ${metrics.waterIntake.unit || "mL"} / ${goals.waterIntake} mL goal (${pct}%)`);
+    }
+    if (metrics.sleep) {
+      lines.push(`- Sleep: ${metrics.sleep.value} ${metrics.sleep.unit || "hrs"} (goal: ${goals.sleep} hrs)`);
+    }
+    if (metrics.calories) {
+      lines.push(`- Calories: ${metrics.calories.value} kcal (goal: ${goals.calories} kcal)`);
+    }
+    if (metrics.distance) {
+      lines.push(`- Distance: ${metrics.distance.value} ${metrics.distance.unit || "km"}`);
+    }
+    if (metrics.heartRate) {
+      lines.push(`- Heart rate: ${metrics.heartRate.value} ${metrics.heartRate.unit || "bpm"}`);
+    }
+    if (metrics.bloodPressure) {
+      const bp = metrics.bloodPressure.value;
+      const bpStr = typeof bp === "object" ? `${bp.systolic}/${bp.diastolic}` : bp;
+      lines.push(`- Blood pressure: ${bpStr} ${metrics.bloodPressure.unit || "mmHg"}`);
+    }
+    if (metrics.bloodGlucose) {
+      lines.push(`- Blood glucose: ${metrics.bloodGlucose.value} ${metrics.bloodGlucose.unit || "mg/dL"}`);
+    }
+    if (metrics.weight) {
+      lines.push(`- Weight: ${metrics.weight.value} ${metrics.weight.unit || "kg"}`);
+    }
+    if (metrics.oxygenSaturation) {
+      lines.push(`- Oxygen saturation: ${metrics.oxygenSaturation.value}%`);
+    }
+    if (metrics.temperature) {
+      lines.push(`- Temperature: ${metrics.temperature.value} ${metrics.temperature.unit || "°C"}`);
+    }
+
+    return lines.join("\n");
+  } catch (err) {
+    console.error("Failed to build metrics context:", err.message);
+    return null;
+  }
+};
 
 /**
  * Send message to Gemini AI
@@ -59,6 +160,10 @@ const sendChatMessage = async (req, res) => {
         message: "Message is required",
       });
     }
+
+    // Fetch user's health metrics for personalized context
+    const userGoals = req.user?.patientInfo?.goals || {};
+    const metricsContext = await buildMetricsContext(req.user._id, userGoals);
 
     // Check for emergency keywords
     const emergencyKeywords = [
@@ -90,7 +195,7 @@ const sendChatMessage = async (req, res) => {
     }
 
     // Helper function for mock responses
-    const getMockResponse = (message) => {
+    const getMockResponse = (message, metricsCtx) => {
       const mockResponses = {
         hello:
           "Hello! I'm your MEDXI Health Assistant. How can I help you with your health questions today?",
@@ -145,7 +250,20 @@ const sendChatMessage = async (req, res) => {
       ) {
         response = mockResponses.exercise;
       } else if (lowerMsg.includes("water") || lowerMsg.includes("hydration")) {
-        response = mockResponses.water;
+        if (metricsCtx) {
+          const match = metricsCtx.match(/Water intake: ([\d.]+) (\S+) \/ ([\d.]+) \S+ \((\d+)%\)/);
+          if (match) {
+            const [, intake, unit, goal, pct] = match;
+            const remaining = Math.round(goal - intake);
+            response = parseInt(pct) >= 100
+              ? `**Great job!** You've already hit your hydration goal — **${intake} ${unit}** drunk today. Keep it up!`
+              : `You've had **${intake} ${unit}** of water today, which is **${pct}%** of your ~${goal} mL daily goal. Try to drink about **${remaining} mL more** to reach it. A good indicator of hydration is pale yellow urine.`;
+          } else {
+            response = mockResponses.water;
+          }
+        } else {
+          response = mockResponses.water;
+        }
       } else if (
         lowerMsg.includes("weight") ||
         lowerMsg.includes("lose weight") ||
@@ -169,7 +287,7 @@ const sendChatMessage = async (req, res) => {
       return res.json({
         success: true,
         data: {
-          response: getMockResponse(message),
+          response: getMockResponse(message, metricsContext),
           isEmergency: false,
           mockMode: true,
         },
@@ -182,6 +300,11 @@ const sendChatMessage = async (req, res) => {
 
       // Build conversation context
       let prompt = SYSTEM_PROMPT + "\n\n";
+
+      // Inject user's health metrics if available
+      if (metricsContext) {
+        prompt += metricsContext + "\n\n";
+      }
 
       if (conversationHistory.length > 0) {
         prompt += "Previous conversation:\n";
@@ -215,7 +338,7 @@ const sendChatMessage = async (req, res) => {
       return res.json({
         success: true,
         data: {
-          response: getMockResponse(message),
+          response: getMockResponse(message, metricsContext),
           isEmergency: false,
           mockMode: true,
         },

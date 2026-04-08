@@ -17,6 +17,75 @@ import { ChatInput } from "@/components/ui/chat-input";
 import { ChatMessageList } from "@/components/ui/chat-message-list";
 import { CornerDownLeft, Sparkles } from "lucide-react";
 
+/** Renders a subset of markdown as React elements for AI messages. */
+const MarkdownMessage = ({ content }) => {
+  const parseInline = (text, keyPrefix) => {
+    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+    return parts.map((part, i) => {
+      const k = `${keyPrefix}-${i}`;
+      if (part.startsWith("**") && part.endsWith("**"))
+        return <strong key={k}>{part.slice(2, -2)}</strong>;
+      if (part.startsWith("*") && part.endsWith("*"))
+        return <em key={k}>{part.slice(1, -1)}</em>;
+      if (part.startsWith("`") && part.endsWith("`"))
+        return (
+          <code key={k} className="bg-muted-foreground/10 rounded px-1 text-xs font-mono">
+            {part.slice(1, -1)}
+          </code>
+        );
+      return part;
+    });
+  };
+
+  const lines = content.split("\n");
+  const elements = [];
+  let listItems = [];
+  let listType = null;
+  let key = 0;
+
+  const flushList = () => {
+    if (listItems.length === 0) return;
+    const Tag = listType === "ol" ? "ol" : "ul";
+    elements.push(
+      <Tag
+        key={key++}
+        className={`my-1 pl-4 space-y-0.5 ${listType === "ol" ? "list-decimal" : "list-disc"}`}
+      >
+        {listItems}
+      </Tag>
+    );
+    listItems = [];
+    listType = null;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (/^#{1,3} /.test(line)) {
+      flushList();
+      const level = line.match(/^(#+)/)[1].length;
+      const text = line.replace(/^#+\s/, "");
+      const cls = level === 1 ? "font-bold mt-2 mb-0.5" : "font-semibold mt-1.5 mb-0.5";
+      elements.push(<p key={key++} className={cls}>{parseInline(text, key)}</p>);
+    } else if (/^[-*] /.test(line)) {
+      if (listType !== "ul") { flushList(); listType = "ul"; }
+      listItems.push(<li key={key++}>{parseInline(line.slice(2), key)}</li>);
+    } else if (/^\d+\. /.test(line)) {
+      if (listType !== "ol") { flushList(); listType = "ol"; }
+      listItems.push(<li key={key++}>{parseInline(line.replace(/^\d+\.\s/, ""), key)}</li>);
+    } else if (line.trim() === "") {
+      flushList();
+      if (elements.length > 0) elements.push(<div key={key++} className="h-1" />);
+    } else {
+      flushList();
+      elements.push(<p key={key++} className="leading-relaxed">{parseInline(line, key)}</p>);
+    }
+  }
+  flushList();
+
+  return <div className="space-y-0.5 text-sm">{elements}</div>;
+};
+
 const SAMPLE_QUESTIONS = [
   "What should my blood pressure be?",
   "Tips for better sleep",
@@ -55,7 +124,14 @@ const ExpandableChatWidget = () => {
     setIsLoading(true);
 
     try {
-      const response = await chatbotAPI.sendMessage(text);
+      const history = messages.map((m) => ({
+        role: m.sender === "user" ? "user" : "assistant",
+        content: m.content,
+      }));
+      const response = await chatbotAPI.sendMessage({
+        message: text,
+        conversationHistory: history,
+      });
       const reply =
         response.data?.data?.reply ||
         response.data?.data?.response ||
@@ -111,7 +187,11 @@ const ExpandableChatWidget = () => {
               <ChatBubbleMessage
                 variant={message.sender === "user" ? "sent" : "received"}
               >
-                {message.content}
+                {message.sender === "ai" ? (
+                  <MarkdownMessage content={message.content} />
+                ) : (
+                  message.content
+                )}
               </ChatBubbleMessage>
             </ChatBubble>
           ))}

@@ -772,10 +772,10 @@ const forgotPassword = async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     try {
-      const resetUrl = `${
-        process.env.CLIENT_URL || "http://localhost:5173"
-      }/reset-password/${resetToken}`;
-      const emailResult = await emailService.sendPasswordResetEmail(user.email, {
+      const clientBase = (process.env.CLIENT_URL || "http://localhost:5173").split(",")[0].trim();
+      const resetUrl = `${clientBase}/reset-password/${resetToken}`;
+      const emailResult = await emailService.sendPasswordResetEmail({
+        to: user.email,
         name: user.profile?.firstName || "User",
         resetUrl,
       });

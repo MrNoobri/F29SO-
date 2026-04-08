@@ -40,19 +40,13 @@ const METRIC_ICONS = {
   sleep: "😴",
 };
 
-const SEVERITY_STYLES = {
-  critical: "border-l-4 border-red-500 bg-red-50/50",
-  high: "border-l-4 border-orange-500 bg-orange-50/50",
-  medium: "border-l-4 border-yellow-500 bg-yellow-50/50",
-  low: "border-l-4 border-blue-500 bg-blue-50/50",
-};
 
-const STATUS_COLORS = {
-  scheduled: "bg-blue-100 text-blue-800",
-  confirmed: "bg-green-100 text-green-800",
-  "in-progress": "bg-yellow-100 text-yellow-800",
-  completed: "bg-gray-100 text-gray-600",
-  cancelled: "bg-red-100 text-red-800",
+const STATUS_STYLE = {
+  scheduled: { background: "color-mix(in srgb, #3b82f6 20%, var(--surface))", color: "#3b82f6" },
+  confirmed: { background: "color-mix(in srgb, #22c55e 20%, var(--surface))", color: "#22c55e" },
+  "in-progress": { background: "color-mix(in srgb, #eab308 20%, var(--surface))", color: "#ca8a04" },
+  completed: { background: "color-mix(in srgb, #94a3b8 20%, var(--surface))", color: "#64748b" },
+  cancelled: { background: "color-mix(in srgb, #ef4444 20%, var(--surface))", color: "#ef4444" },
 };
 
 const TABS = [
@@ -89,11 +83,8 @@ const PatientDetailPanel = ({ patient, onBack }) => {
   const { data: appointmentHistory } = useQuery({
     queryKey: ["patientAppointments", patient._id],
     queryFn: async () => {
-      const response = await appointmentsAPI.getAll({});
-      return (response.data.data || []).filter(
-        (a) =>
-          (a.patientId?._id || a.patientId) === patient._id,
-      );
+      const response = await appointmentsAPI.getAll({ patientId: patient._id });
+      return response.data.data || [];
     },
     enabled: !!patient._id,
   });
@@ -193,19 +184,19 @@ const PatientDetailPanel = ({ patient, onBack }) => {
           {/* Patient info tags */}
           <div className="flex flex-wrap gap-2 ml-[4.5rem]">
             {patient.patientInfo?.bloodType && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: "color-mix(in srgb, #ef4444 20%, var(--surface))", color: "#ef4444" }}>
                 <Droplets className="h-3 w-3" />
                 {patient.patientInfo.bloodType}
               </span>
             )}
             {patient.patientInfo?.allergies?.length > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: "color-mix(in srgb, #f97316 20%, var(--surface))", color: "#f97316" }}>
                 <AlertTriangle className="h-3 w-3" />
                 Allergies: {patient.patientInfo.allergies.join(", ")}
               </span>
             )}
             {patient.patientInfo?.medications?.length > 0 && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: "color-mix(in srgb, #3b82f6 20%, var(--surface))", color: "#3b82f6" }}>
                 <Pill className="h-3 w-3" />
                 {patient.patientInfo.medications.length} medication(s)
               </span>
@@ -236,16 +227,16 @@ const PatientDetailPanel = ({ patient, onBack }) => {
       {activeTab === "overview" && (
         <>
           {activeAlerts.length > 0 && (
-            <Card className="border-l-4 border-red-500 bg-red-50/30">
+            <Card className="border-l-4 border-red-500" style={{ background: "color-mix(in srgb, #ef4444 12%, var(--surface))" }}>
               <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-red-700 font-semibold mb-2">
+                <div className="flex items-center gap-2 font-semibold mb-2" style={{ color: "#ef4444" }}>
                   <AlertTriangle className="h-4 w-4" />
                   {activeAlerts.length} Active Alert(s)
                 </div>
                 <div className="space-y-2">
                   {activeAlerts.slice(0, 3).map((alert) => (
-                    <div key={alert._id} className="text-sm text-red-600">
-                      <span className="font-medium">[{alert.severity}]</span>{" "}
+                    <div key={alert._id} className="text-sm" style={{ color: "var(--text)" }}>
+                      <span className="font-semibold" style={{ color: "#ef4444" }}>[{alert.severity}]</span>{" "}
                       {alert.title} - {alert.message}
                     </div>
                   ))}
@@ -328,10 +319,8 @@ const PatientDetailPanel = ({ patient, onBack }) => {
                           </div>
                         </div>
                         <span
-                          className={cn(
-                            "text-xs px-2 py-0.5 rounded-full font-medium",
-                            STATUS_COLORS[appt.status] || STATUS_COLORS.scheduled,
-                          )}
+                          className="text-xs px-2 py-0.5 rounded-full font-medium"
+                          style={STATUS_STYLE[appt.status] || STATUS_STYLE.scheduled}
                         >
                           {appt.status}
                         </span>

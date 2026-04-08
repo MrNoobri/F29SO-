@@ -1,6 +1,7 @@
 const Medication = require("../models/Medication.model");
 const Alert = require("../models/Alert.model");
 const { awardXP } = require("./gamification.controller");
+const { providerHasPatient } = require("../utils/providerAccess");
 
 const createMedication = async (req, res) => {
   try {
@@ -33,8 +34,13 @@ const createMedication = async (req, res) => {
 const getMedications = async (req, res) => {
   try {
     const userId = req.params.userId || req.user._id;
-    const { active } = req.query;
 
+    if (req.user.role === "provider" && userId.toString() !== req.user._id.toString()) {
+      const allowed = await providerHasPatient(req.user._id, userId);
+      if (!allowed) return res.status(403).json({ message: "Access denied" });
+    }
+
+    const { active } = req.query;
     const query = { userId };
     if (active !== undefined) {
       query.isActive = active === "true";
@@ -168,6 +174,12 @@ const logAdherence = async (req, res) => {
 const getAdherenceStats = async (req, res) => {
   try {
     const userId = req.params.userId || req.user._id;
+
+    if (req.user.role === "provider" && userId.toString() !== req.user._id.toString()) {
+      const allowed = await providerHasPatient(req.user._id, userId);
+      if (!allowed) return res.status(403).json({ message: "Access denied" });
+    }
+
     const { days = 30 } = req.query;
     const since = new Date();
     since.setDate(since.getDate() - parseInt(days));

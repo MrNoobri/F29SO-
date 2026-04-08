@@ -81,7 +81,7 @@ const createAppointment = async (req, res) => {
  */
 const getAppointments = async (req, res) => {
   try {
-    const { status, startDate, endDate } = req.query;
+    const { status, startDate, endDate, patientId } = req.query;
 
     const query = {};
 
@@ -90,6 +90,10 @@ const getAppointments = async (req, res) => {
       query.patientId = req.user._id;
     } else if (req.user.role === "provider") {
       query.providerId = req.user._id;
+      // Allow providers to filter by a specific patient
+      if (patientId) {
+        query.patientId = patientId;
+      }
     }
 
     if (status) {

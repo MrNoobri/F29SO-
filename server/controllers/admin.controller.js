@@ -122,6 +122,11 @@ const updateUser = async (req, res) => {
 
     if (role && ["patient", "provider", "admin"].includes(role)) {
       user.role = role;
+      // providerInfo.specialization is required when role === "provider"
+      if (role === "provider" && !user.providerInfo?.specialization) {
+        user.providerInfo = user.providerInfo || {};
+        user.providerInfo.specialization = "General Practice";
+      }
     }
     if (typeof isActive === "boolean") {
       user.isActive = isActive;

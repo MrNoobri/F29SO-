@@ -1,4 +1,5 @@
 const Alert = require("../models/Alert.model");
+const { providerHasPatient, filterAllowedPatients } = require("../utils/providerAccess");
 
 /**
  * Get user alerts
@@ -15,9 +16,17 @@ const getAlerts = async (req, res) => {
     } else if (req.user.role === "provider") {
       if (req.query.patientIds) {
         const ids = req.query.patientIds.split(",").map((id) => id.trim());
-        query.userId = { $in: ids };
+        const allowed = await filterAllowedPatients(req.user._id, ids);
+        query.userId = { $in: allowed };
       } else if (req.query.userId) {
+        const allowed = await providerHasPatient(req.user._id, req.query.userId);
+        if (!allowed) {
+          return res.status(403).json({ success: false, message: "Access denied" });
+        }
         query.userId = req.query.userId;
+      } else {
+        // No filter specified — return nothing rather than all alerts
+        query.userId = null;
       }
     }
 

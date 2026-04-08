@@ -75,6 +75,7 @@ const ProviderDashboard = () => {
   const { theme, mode, setTheme, setMode } = useTheme();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
+  const [selectedPatient, setSelectedPatient] = useState(null);
   const [showSplash, setShowSplash] = useState(true);
   const [pastHero, setPastHero] = useState(false);
   const heroRef = useRef(null);
@@ -118,7 +119,7 @@ const ProviderDashboard = () => {
 
   // ── React Query: patients, appointments, messages, alerts ──
   const { data: patients } = useQuery({
-    queryKey: ["providerPatients"],
+    queryKey: ["providerPatients", user?._id],
     queryFn: async () => {
       const response = await appointmentsAPI.getProviderPatients();
       return response.data.data;
@@ -128,7 +129,7 @@ const ProviderDashboard = () => {
   });
 
   const { data: todayAppointments } = useQuery({
-    queryKey: ["appointments", "today"],
+    queryKey: ["appointments", "today", user?._id],
     queryFn: async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -145,7 +146,7 @@ const ProviderDashboard = () => {
   });
 
   const { data: unreadMessagesData } = useQuery({
-    queryKey: ["unreadMessages"],
+    queryKey: ["unreadMessages", user?._id],
     queryFn: async () => {
       const response = await messagesAPI.getUnreadCount();
       return response.data.data?.count || 0;
@@ -179,6 +180,19 @@ const ProviderDashboard = () => {
   const activeAlertsCount = (patientAlerts || []).filter(
     (a) => !a.isAcknowledged,
   ).length;
+
+  const openPatient = (patientId) => {
+    const patient = (patients || []).find((p) => p._id === patientId);
+    if (patient) {
+      setSelectedPatient(patient);
+      setActiveTab("patients");
+      setTimeout(() => {
+        document.getElementById("dashboard-tabs")?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } else {
+      setActiveTab("patients");
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -366,12 +380,19 @@ const ProviderDashboard = () => {
                 patientAlerts={patientAlerts}
                 unreadMessages={unreadMessagesData}
                 onSwitchTab={setActiveTab}
+                onPatientClick={openPatient}
               />
             )}
 
             {activeTab === "calendar" && <CalendarTab />}
 
-            {activeTab === "patients" && <PatientsTab patients={patients} />}
+            {activeTab === "patients" && (
+              <PatientsTab
+                patients={patients}
+                selectedPatient={selectedPatient}
+                onSelectPatient={(p) => setSelectedPatient(p)}
+              />
+            )}
 
             {activeTab === "messages" && <MessagesTab />}
 
@@ -379,7 +400,7 @@ const ProviderDashboard = () => {
               <AlertsTab
                 patientAlerts={patientAlerts}
                 patients={patients}
-                onPatientClick={() => setActiveTab("patients")}
+                onPatientClick={openPatient}
               />
             )}
           </div>

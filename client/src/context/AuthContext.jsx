@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { authAPI } from "../api";
 import { setAuthFailureCallback } from "../api/axios";
+import { queryClient } from "../main";
 
 const AuthContext = createContext(null);
 
@@ -88,6 +89,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       localStorage.removeItem("user");
       sessionStorage.removeItem("medxi_splash_shown");
+      queryClient.clear();
       setUser(null);
     }
   };
