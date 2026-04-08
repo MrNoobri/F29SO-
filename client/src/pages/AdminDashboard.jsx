@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,6 +21,11 @@ import {
   UserX,
   AlertTriangle,
   ServerCog,
+  X,
+  Mail,
+  Phone,
+  Pencil,
+  Save,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { adminAPI } from "../api";
@@ -170,6 +175,335 @@ const OverviewTab = ({ stats, systemMetrics }) => (
   </div>
 );
 
+/* ──────── User Detail Drawer ──────── */
+const UserDetailDrawer = ({ user, onClose, onSave, isSaving }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [form, setForm] = useState(null);
+
+  // Reset local form whenever a different user is opened
+  useEffect(() => {
+    if (user) {
+      setForm({
+        role: user.role,
+        isActive: user.isActive,
+        firstName: user.profile?.firstName ?? "",
+        lastName: user.profile?.lastName ?? "",
+        phone: user.profile?.phone ?? "",
+      });
+      setIsEditing(false);
+    }
+  }, [user?._id]);
+
+  // Escape key closes the drawer
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!user || !form) return null;
+
+  const handleSave = () => {
+    onSave({
+      id: user._id,
+      body: {
+        role: form.role,
+        isActive: form.isActive,
+        profile: {
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phone: form.phone,
+        },
+      },
+    });
+  };
+
+  const fullName = `${user.profile?.firstName ?? ""} ${user.profile?.lastName ?? ""}`.trim();
+  const initials =
+    `${user.profile?.firstName?.[0] ?? ""}${user.profile?.lastName?.[0] ?? ""}`.toUpperCase() ||
+    "?";
+
+  return (
+    <>
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+      />
+      {/* Drawer */}
+      <motion.aside
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 30, stiffness: 280 }}
+        className="fixed top-0 right-0 h-full w-full sm:w-[480px] bg-card border-l border-border z-50 flex flex-col shadow-2xl"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-bold">
+            {isEditing ? "Edit Account" : "Account Details"}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Identity card */}
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-semibold truncate">
+                {fullName || "—"}
+              </p>
+              <p className="text-sm text-muted-foreground truncate">
+                {user.email}
+              </p>
+            </div>
+          </div>
+
+          {/* Role + Status badges (always visible) */}
+          <div className="flex flex-wrap gap-2">
+            <span
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-medium",
+                user.role === "admin" && "bg-purple-500/10 text-purple-500",
+                user.role === "provider" && "bg-blue-500/10 text-blue-500",
+                user.role === "patient" && "bg-emerald-500/10 text-emerald-500",
+              )}
+            >
+              {user.role}
+            </span>
+            {user.isActive ? (
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 flex items-center gap-1">
+                <UserCheck className="h-3 w-3" /> Active
+              </span>
+            ) : (
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 flex items-center gap-1">
+                <UserX className="h-3 w-3" /> Inactive
+              </span>
+            )}
+            {user.isEmailVerified && (
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500">
+                Email verified
+              </span>
+            )}
+          </div>
+
+          {/* View mode */}
+          {!isEditing && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Contact
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{user.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{user.profile?.phone || "—"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Account
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">User ID</span>
+                    <span className="font-mono text-xs">{user._id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Joined</span>
+                    <span>
+                      {user.createdAt
+                        ? new Date(user.createdAt).toLocaleDateString()
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Last login</span>
+                    <span>
+                      {user.lastLogin
+                        ? new Date(user.lastLogin).toLocaleString()
+                        : "Never"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {user.role === "provider" && user.providerInfo && (
+                <div>
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    Provider Info
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Specialization
+                      </span>
+                      <span>{user.providerInfo.specialization || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">License</span>
+                      <span>{user.providerInfo.licenseNumber || "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Edit mode */}
+          {isEditing && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                  First name
+                </label>
+                <input
+                  type="text"
+                  value={form.firstName}
+                  onChange={(e) =>
+                    setForm({ ...form, firstName: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                  Last name
+                </label>
+                <input
+                  type="text"
+                  value={form.lastName}
+                  onChange={(e) =>
+                    setForm({ ...form, lastName: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                  Phone
+                </label>
+                <input
+                  type="text"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                  Role
+                </label>
+                <div className="flex gap-2">
+                  {["patient", "provider", "admin"].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setForm({ ...form, role: r })}
+                      className={cn(
+                        "flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-colors capitalize",
+                        form.role === r
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border text-muted-foreground hover:bg-accent",
+                      )}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                  Status
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, isActive: true })}
+                    className={cn(
+                      "flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-colors",
+                      form.isActive
+                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/40"
+                        : "border-border text-muted-foreground hover:bg-accent",
+                    )}
+                  >
+                    Active
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, isActive: false })}
+                    className={cn(
+                      "flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-colors",
+                      !form.isActive
+                        ? "bg-red-500/10 text-red-500 border-red-500/40"
+                        : "border-border text-muted-foreground hover:bg-accent",
+                    )}
+                  >
+                    Inactive
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer actions */}
+        <div className="px-6 py-4 border-t border-border flex justify-end gap-2">
+          {!isEditing ? (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => setIsEditing(false)}
+                disabled={isSaving}
+                className="px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-accent disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" />
+                {isSaving ? "Saving..." : "Save changes"}
+              </button>
+            </>
+          )}
+        </div>
+      </motion.aside>
+    </>
+  );
+};
+
 /* ──────── Users Tab ──────── */
 const UsersTab = () => {
   const queryClient = useQueryClient();
@@ -177,6 +511,7 @@ const UsersTab = () => {
   const [roleFilter, setRoleFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-users", page, roleFilter, searchTerm],
@@ -193,9 +528,13 @@ const UsersTab = () => {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, body }) => adminAPI.updateUser(id, body),
-    onSuccess: () => {
+    onSuccess: (res, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
+      // If this was a full edit-form save (has profile body), close drawer
+      if (variables?.body?.profile) {
+        setSelectedUserId(null);
+      }
     },
   });
 
@@ -288,7 +627,8 @@ const UsersTab = () => {
                 users.map((u) => (
                   <tr
                     key={u._id}
-                    className="border-b border-border/50 hover:bg-muted/20 transition-colors"
+                    onClick={() => setSelectedUserId(u._id)}
+                    className="border-b border-border/50 hover:bg-muted/20 transition-colors cursor-pointer"
                   >
                     <td className="px-4 py-3 font-medium">
                       {u.profile?.firstName} {u.profile?.lastName}
@@ -330,12 +670,13 @@ const UsersTab = () => {
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() =>
+                          onClick={(e) => {
+                            e.stopPropagation();
                             updateMutation.mutate({
                               id: u._id,
                               body: { isActive: !u.isActive },
-                            })
-                          }
+                            });
+                          }}
                           className={cn(
                             "p-1.5 rounded-lg transition-colors",
                             u.isActive
@@ -351,7 +692,8 @@ const UsersTab = () => {
                           )}
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (
                               window.confirm(
                                 `Delete ${u.profile?.firstName} ${u.profile?.lastName}? This will remove all their data.`,
@@ -401,6 +743,17 @@ const UsersTab = () => {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {selectedUserId && (
+          <UserDetailDrawer
+            user={users.find((u) => u._id === selectedUserId)}
+            onClose={() => setSelectedUserId(null)}
+            onSave={(payload) => updateMutation.mutate(payload)}
+            isSaving={updateMutation.isPending}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

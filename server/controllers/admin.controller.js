@@ -97,11 +97,11 @@ const getUsers = async (req, res) => {
   }
 };
 
-// PUT /api/admin/users/:id — update user role/status
+// PUT /api/admin/users/:id — update user role/status/profile basics
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { role, isActive } = req.body;
+    const { role, isActive, profile } = req.body;
 
     const user = await User.findById(id);
     if (!user) {
@@ -127,11 +127,28 @@ const updateUser = async (req, res) => {
       user.isActive = isActive;
     }
 
+    // Whitelist editable profile fields only
+    const profileChanges = {};
+    if (profile && typeof profile === "object") {
+      if (typeof profile.firstName === "string" && profile.firstName.trim()) {
+        user.profile.firstName = profile.firstName.trim();
+        profileChanges.firstName = user.profile.firstName;
+      }
+      if (typeof profile.lastName === "string" && profile.lastName.trim()) {
+        user.profile.lastName = profile.lastName.trim();
+        profileChanges.lastName = user.profile.lastName;
+      }
+      if (typeof profile.phone === "string") {
+        user.profile.phone = profile.phone.trim();
+        profileChanges.phone = user.profile.phone;
+      }
+    }
+
     await user.save();
 
     await createAuditLog(req.user._id, req.user.role, "user-updated", {
       targetId: user._id,
-      changes: { role, isActive },
+      changes: { role, isActive, profile: profileChanges },
     });
 
     res.json({ success: true, data: { user } });
