@@ -137,7 +137,29 @@ app.use(
     credentials: true,
   }),
 );
-app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        connectSrc: [
+          "'self'",
+          "https://prod.spline.design",
+          "https://*.spline.design",
+          "wss:",
+          "ws:",
+        ],
+        imgSrc: ["'self'", "data:", "blob:", "https:"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:"],
+        fontSrc: ["'self'", "data:", "https:"],
+        mediaSrc: ["'self'", "data:", "blob:", "https:"],
+        workerSrc: ["'self'", "blob:"],
+      },
+    },
+  }),
+);
 // NoSQL injection prevention (Express 5 compatible — req.query is read-only)
 app.use((req, res, next) => {
   if (req.body && typeof req.body === "object") mongoSanitize.sanitize(req.body);
