@@ -8,6 +8,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const path = require("path");
+const fs = require("fs");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
@@ -15,6 +16,8 @@ const { verifyToken } = require("./utils/jwt.util");
 
 const app = express();
 const httpServer = http.createServer(app);
+const clientDistPath = path.resolve(__dirname, "../client/dist");
+const clientIndexPath = path.join(clientDistPath, "index.html");
 
 const defaultClientOrigins = ["http://localhost:5173", "http://localhost:5174"];
 const allowedClientOrigins = (process.env.CLIENT_URL || defaultClientOrigins.join(","))
@@ -198,6 +201,14 @@ app.use("/api/admin", require("./routes/admin.routes"));
 app.use("/api/export", require("./routes/export.routes"));
 app.use("/api/feedback", require("./routes/feedback.routes"));
 app.use("/api/recipes", require("./routes/recipe.routes"));
+
+if (fs.existsSync(clientIndexPath)) {
+  app.use(express.static(clientDistPath));
+
+  app.get(/^\/(?!api|uploads).*/, (req, res) => {
+    res.sendFile(clientIndexPath);
+  });
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
