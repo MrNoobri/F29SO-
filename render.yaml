@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: medxi
+    runtime: node
+    plan: free
+    buildCommand: npm --prefix server install && npm --prefix client install && npm --prefix client run build
+    startCommand: npm --prefix server start
+    envVars:
+      - key: NODE_ENV
+        value: production
